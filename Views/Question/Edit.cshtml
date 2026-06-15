@@ -1,0 +1,35 @@
+@model Question
+@{
+    ViewData["Title"] = "Edit Question";
+    int correctIndex = Model.Options.ToList().FindIndex(o => o.IsCorrect);
+}
+
+<h2>Edit Question</h2>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="QuizId" />
+
+    <div class="mb-3">
+        <label asp-for="Text" class="form-label">Question Text</label>
+        <textarea asp-for="Text" class="form-control"></textarea>
+        <span asp-validation-for="Text" class="text-danger"></span>
+    </div>
+
+    <label class="form-label">Options (select the radio button for the correct answer)</label>
+    @for (int i = 0; i < Model.Options.Count; i++)
+    {
+        var opt = Model.Options.ElementAt(i);
+        <div class="input-group mb-2">
+            <div class="input-group-text">
+                <input class="form-check-input mt-0" type="radio" name="correctOptionIndex" value="@i" checked="@(i == correctIndex)" />
+            </div>
+            <input type="hidden" name="Options[@i].Id" value="@opt.Id" />
+            <input type="hidden" name="Options[@i].QuestionId" value="@opt.QuestionId" />
+            <input type="text" name="Options[@i].Text" class="form-control" value="@opt.Text" required />
+        </div>
+    }
+
+    <button type="submit" class="btn btn-primary mt-2">Save</button>
+    <a asp-action="Index" asp-route-quizId="@Model.QuizId" class="btn btn-outline-secondary">Cancel</a>
+</form>

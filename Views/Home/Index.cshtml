@@ -1,0 +1,45 @@
+@model List<Category>
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="text-center mb-5 py-4 glass" style="border-radius: 24px;">
+    <h1 class="display-5 fw-bold mb-2">
+        <i class="ti ti-bulb" style="font-size: 40px; vertical-align: -6px;"></i>
+        Welcome to the Online Quiz App
+    </h1>
+    <p class="lead mb-3" style="color: #5b5b7a;">Test your knowledge across various categories!</p>
+    <a asp-controller="Quiz" asp-action="Index" class="btn btn-primary btn-lg">
+        <i class="ti ti-rocket me-1"></i> Browse All Quizzes
+    </a>
+</div>
+
+<div class="row">
+    @foreach (var category in Model)
+    {
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="d-inline-flex align-items-center justify-content-center"
+                              style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6e8efb,#a777e3);color:#fff;">
+                            <i class="ti ti-category" style="font-size:20px"></i>
+                        </span>
+                        <h5 class="card-title mb-0">@category.Name</h5>
+                    </div>
+                    <p class="card-text flex-grow-1" style="color:#5b5b7a;">@category.Quizzes.Count quiz(zes) available</p>
+                    <a asp-controller="Quiz" asp-action="Index" asp-route-categoryId="@category.Id" class="btn btn-outline-primary btn-sm align-self-start">
+                        <i class="ti ti-arrow-right me-1"></i> View Quizzes
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info text-center">
+        <i class="ti ti-info-circle me-1"></i> No categories yet. Check back soon!
+    </div>
+}

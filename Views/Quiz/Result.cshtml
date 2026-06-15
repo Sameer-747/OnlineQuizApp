@@ -1,0 +1,36 @@
+@model QuizResultViewModel
+@{
+    ViewData["Title"] = "Quiz Result";
+    var percentage = Model.TotalQuestions > 0 ? (Model.Score * 100.0 / Model.TotalQuestions) : 0;
+}
+
+<h2>Result: @Model.QuizTitle</h2>
+
+<div class="alert alert-primary">
+    <h4>Score: @Model.Score / @Model.TotalQuestions (@percentage.ToString("0.0")%)</h4>
+    <p class="mb-0">Completed: @Model.CompletedAt.ToLocalTime().ToString("g")</p>
+</div>
+
+<h4>Review</h4>
+@for (int i = 0; i < Model.QuestionResults.Count; i++)
+{
+    var qr = Model.QuestionResults[i];
+    <div class="card mb-2 @(qr.IsCorrect ? "border-success" : "border-danger")">
+        <div class="card-body">
+            <p class="fw-bold mb-1">Q@(i + 1). @qr.QuestionText</p>
+            <p class="mb-1">
+                Your answer:
+                <span class="@(qr.IsCorrect ? "text-success" : "text-danger")">
+                    @(qr.SelectedOptionText ?? "Not answered")
+                </span>
+            </p>
+            @if (!qr.IsCorrect)
+            {
+                <p class="mb-0 text-success">Correct answer: @qr.CorrectOptionText</p>
+            }
+        </div>
+    </div>
+}
+
+<a asp-action="Index" class="btn btn-primary">Back to Quizzes</a>
+<a asp-action="History" class="btn btn-outline-secondary">My History</a>

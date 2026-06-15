@@ -1,0 +1,13 @@
+@model Quiz
+@{
+    ViewData["Title"] = "Delete Quiz";
+}
+
+<h2>Delete Quiz</h2>
+<p>Are you sure you want to delete <strong>@Model.Title</strong> (@Model.Category?.Name)? This will also delete its questions.</p>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+</form>

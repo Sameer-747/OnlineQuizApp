@@ -1,0 +1,57 @@
+@model List<QuizAttempt>
+@{
+    ViewData["Title"] = "Student Results";
+    var quizzes = ViewBag.Quizzes as List<Quiz> ?? new List<Quiz>();
+    int? selectedQuizId = ViewBag.SelectedQuizId;
+}
+
+<h2>Student Results</h2>
+
+<div class="mb-3">
+    <div class="btn-group flex-wrap" role="group">
+        <a asp-action="Index" class="btn btn-sm @(selectedQuizId == null ? "btn-primary" : "btn-outline-primary")">All Quizzes</a>
+        @foreach (var quiz in quizzes)
+        {
+            <a asp-action="Index" asp-route-quizId="@quiz.Id"
+               class="btn btn-sm @(selectedQuizId == quiz.Id ? "btn-primary" : "btn-outline-primary")">
+                @quiz.Title
+            </a>
+        }
+    </div>
+</div>
+
+<p class="text-muted">Total attempts: @Model.Count</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Student</th>
+            <th>Email</th>
+            <th>Quiz</th>
+            <th>Score</th>
+            <th>Percentage</th>
+            <th>Completed At</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var attempt in Model)
+        {
+            var percentage = attempt.TotalQuestions > 0
+                ? (attempt.Score * 100.0 / attempt.TotalQuestions)
+                : 0;
+            <tr>
+                <td>@(attempt.User?.FullName ?? "—")</td>
+                <td>@attempt.User?.Email</td>
+                <td>@attempt.Quiz?.Title</td>
+                <td>@attempt.Score / @attempt.TotalQuestions</td>
+                <td>@percentage.ToString("0.0")%</td>
+                <td>@attempt.CompletedAt?.ToLocalTime().ToString("g")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No attempts yet.</div>
+}

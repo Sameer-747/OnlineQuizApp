@@ -1,0 +1,34 @@
+@model Quiz
+@{
+    ViewData["Title"] = "Questions - " + Model.Title;
+}
+
+<h2>Questions for: @Model.Title</h2>
+<a asp-action="Create" asp-route-quizId="@Model.Id" class="btn btn-primary mb-3">+ New Question</a>
+
+@for (int i = 0; i < Model.Questions.Count; i++)
+{
+    var q = Model.Questions.ElementAt(i);
+    <div class="card mb-2">
+        <div class="card-body">
+            <p class="fw-bold">Q@(i + 1). @q.Text</p>
+            <ul class="list-group mb-2">
+                @foreach (var opt in q.Options)
+                {
+                    <li class="list-group-item @(opt.IsCorrect ? "list-group-item-success" : "")">
+                        @opt.Text @(opt.IsCorrect ? " (Correct)" : "")
+                    </li>
+                }
+            </ul>
+            <a asp-action="Edit" asp-route-id="@q.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <a asp-action="Delete" asp-route-id="@q.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+        </div>
+    </div>
+}
+
+@if (!Model.Questions.Any())
+{
+    <div class="alert alert-info">No questions added yet.</div>
+}
+
+<a asp-controller="QuizAdmin" asp-action="Index" class="btn btn-outline-secondary mt-2">Back to Quizzes</a>

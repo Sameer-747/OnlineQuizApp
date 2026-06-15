@@ -1,0 +1,65 @@
+@model QuizPlayViewModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<h2>@Model.Title</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <p class="text-muted mb-0">Answer all questions and click Submit.</p>
+    <div class="badge bg-warning text-dark fs-6" id="timer">--:--</div>
+</div>
+
+<form asp-action="Submit" method="post" id="quizForm">
+    <input type="hidden" name="QuizId" value="@Model.QuizId" />
+
+    @for (int i = 0; i < Model.Questions.Count; i++)
+    {
+        var q = Model.Questions[i];
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Q@(i + 1). @q.Text</h5>
+                <input type="hidden" name="Answers[@i].QuestionId" value="@q.QuestionId" />
+                @foreach (var opt in q.Options)
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio"
+                               name="Answers[@i].SelectedOptionId"
+                               id="opt_@opt.OptionId"
+                               value="@opt.OptionId" />
+                        <label class="form-check-label" for="opt_@opt.OptionId">
+                            @opt.Text
+                        </label>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <button type="submit" class="btn btn-success">Submit Quiz</button>
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            let duration = @Model.DurationMinutes * 60; // seconds
+            const timerEl = document.getElementById('timer');
+            const form = document.getElementById('quizForm');
+
+            function updateTimer() {
+                const minutes = Math.floor(duration / 60);
+                const seconds = duration % 60;
+                timerEl.textContent = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+
+                if (duration <= 0) {
+                    clearInterval(interval);
+                    form.submit();
+                    return;
+                }
+                duration--;
+            }
+
+            updateTimer();
+            const interval = setInterval(updateTimer, 1000);
+        })();
+    </script>
+}

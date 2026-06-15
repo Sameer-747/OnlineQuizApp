@@ -1,0 +1,13 @@
+@model Quiz
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<h2>@Model.Title</h2>
+<p class="text-muted">Category: @Model.Category?.Name</p>
+<p>@Model.Description</p>
+<p><strong>Duration:</strong> @Model.DurationMinutes minutes</p>
+<p><strong>Number of Questions:</strong> @Model.Questions.Count</p>
+
+<a asp-action="Take" asp-route-id="@Model.Id" class="btn btn-primary">Start Quiz</a>
+<a asp-action="Index" class="btn btn-outline-secondary">Back to Quizzes</a>

@@ -1,0 +1,29 @@
+@model List<Quiz>
+@{
+    ViewData["Title"] = "Manage Quizzes";
+}
+
+<h2>Manage Quizzes</h2>
+<a asp-action="Create" class="btn btn-primary mb-3">+ New Quiz</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr><th>Title</th><th>Category</th><th>Duration</th><th>Questions</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var quiz in Model)
+        {
+            <tr>
+                <td>@quiz.Title</td>
+                <td>@quiz.Category?.Name</td>
+                <td>@quiz.DurationMinutes min</td>
+                <td>@quiz.Questions.Count</td>
+                <td>
+                    <a asp-controller="Question" asp-action="Index" asp-route-quizId="@quiz.Id" class="btn btn-sm btn-outline-primary">Questions</a>
+                    <a asp-action="Edit" asp-route-id="@quiz.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <a asp-action="Delete" asp-route-id="@quiz.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

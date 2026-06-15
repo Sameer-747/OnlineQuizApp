@@ -1,0 +1,30 @@
+@model Question
+@{
+    ViewData["Title"] = "New Question";
+}
+
+<h2>New Question</h2>
+
+<form asp-action="Create" method="post">
+    <input type="hidden" asp-for="QuizId" />
+
+    <div class="mb-3">
+        <label asp-for="Text" class="form-label">Question Text</label>
+        <textarea asp-for="Text" class="form-control"></textarea>
+        <span asp-validation-for="Text" class="text-danger"></span>
+    </div>
+
+    <label class="form-label">Options (select the radio button for the correct answer)</label>
+    @for (int i = 0; i < Model.Options.Count; i++)
+    {
+        <div class="input-group mb-2">
+            <div class="input-group-text">
+                <input class="form-check-input mt-0" type="radio" name="correctOptionIndex" value="@i" />
+            </div>
+            <input type="text" name="Options[@i].Text" class="form-control" placeholder="Option @(i + 1)" required />
+        </div>
+    }
+
+    <button type="submit" class="btn btn-primary mt-2">Save</button>
+    <a asp-action="Index" asp-route-quizId="@Model.QuizId" class="btn btn-outline-secondary">Cancel</a>
+</form>

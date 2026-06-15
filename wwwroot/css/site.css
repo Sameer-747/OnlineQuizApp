@@ -1,0 +1,257 @@
+/* ===================== Base ===================== */
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+html, body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Poppins', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1f2533;
+  background: linear-gradient(135deg, #6e8efb 0%, #a777e3 45%, #f6a6c1 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Decorative animated blobs behind everything */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  z-index: -1;
+  pointer-events: none;
+}
+
+body::before {
+  width: 420px;
+  height: 420px;
+  top: -120px;
+  left: -100px;
+  background: #8ec5fc;
+  animation: floatBlob 18s ease-in-out infinite;
+}
+
+body::after {
+  width: 480px;
+  height: 480px;
+  bottom: -150px;
+  right: -120px;
+  background: #f6a6c1;
+  animation: floatBlob 22s ease-in-out infinite reverse;
+}
+
+@keyframes floatBlob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, -30px) scale(1.08); }
+}
+
+/* ===================== Glass utility ===================== */
+.glass {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+}
+
+/* ===================== Navbar ===================== */
+.glass-navbar {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 24px rgba(31, 38, 135, 0.10);
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
+.glass-navbar .navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, #6e8efb, #a777e3);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glass-navbar .nav-link {
+  font-weight: 500;
+  color: #3a3a55 !important;
+  position: relative;
+  transition: color 0.25s ease;
+  padding: 0.5rem 0.9rem !important;
+  border-radius: 999px;
+}
+
+.glass-navbar .nav-link:hover {
+  color: #6e8efb !important;
+  background: rgba(110, 142, 251, 0.12);
+}
+
+.glass-navbar .nav-link.active,
+.glass-navbar .nav-item .nav-link[aria-current="page"] {
+  color: #6e8efb !important;
+  background: rgba(110, 142, 251, 0.16);
+}
+
+/* ===================== Cards ===================== */
+.card {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.12);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(31, 38, 135, 0.20);
+}
+
+.card-title {
+  font-weight: 600;
+  color: #2d2d47;
+}
+
+/* ===================== Buttons ===================== */
+.btn {
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, #6e8efb, #a777e3);
+  border: none;
+  box-shadow: 0 4px 14px rgba(110, 142, 251, 0.35);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(90deg, #5d7ef0, #9763d8);
+  box-shadow: 0 6px 20px rgba(110, 142, 251, 0.45);
+  transform: translateY(-2px);
+}
+
+.btn-outline-primary,
+.btn-outline-secondary {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(110, 142, 251, 0.4);
+  color: #5b5b7a;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover {
+  background: rgba(110, 142, 251, 0.15);
+  border-color: #6e8efb;
+  color: #4b4b6b;
+  transform: translateY(-2px);
+}
+
+.btn-outline-danger {
+  border-radius: 999px;
+}
+
+/* ===================== Containers / Main ===================== */
+main {
+  animation: fadeInUp 0.5s ease both;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===================== Footer ===================== */
+.glass-footer {
+  background: rgba(255, 255, 255, 0.35) !important;
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  color: #4b4b6b;
+}
+
+/* ===================== Forms ===================== */
+.form-control,
+.form-select {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: #a777e3;
+  box-shadow: 0 0 0 0.2rem rgba(167, 119, 227, 0.25);
+}
+
+/* ===================== Tables ===================== */
+.table {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.table thead th {
+  background: rgba(110, 142, 251, 0.15);
+  border-bottom: none;
+  font-weight: 600;
+  color: #3a3a55;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ===================== Alerts / Badges ===================== */
+.alert {
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.badge {
+  border-radius: 999px;
+}
+
+/* ===================== Focus rings ===================== */
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.15rem rgba(167, 119, 227, 0.35);
+}
+
+/* ===================== Misc ===================== */
+a {
+  color: #6e6ee0;
+}
+
+a:hover {
+  color: #a777e3;
+}
+
+h1, h2, h3, h4, h5 {
+  font-weight: 600;
+  color: #2d2d47;
+}

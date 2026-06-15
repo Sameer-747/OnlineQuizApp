@@ -1,0 +1,33 @@
+@model List<QuizAttempt>
+@{
+    ViewData["Title"] = "My History";
+}
+
+<h2>My Quiz History</h2>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Quiz</th>
+            <th>Score</th>
+            <th>Completed At</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var attempt in Model)
+        {
+            <tr>
+                <td>@attempt.Quiz?.Title</td>
+                <td>@attempt.Score / @attempt.TotalQuestions</td>
+                <td>@attempt.CompletedAt?.ToLocalTime().ToString("g")</td>
+                <td><a asp-action="Result" asp-route-attemptId="@attempt.Id" class="btn btn-sm btn-outline-primary">View</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">You haven't taken any quizzes yet.</div>
+}
