@@ -112,5 +112,41 @@ namespace OnlineQuizApp.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        // POST: /Admin/Admins/DeleteAccount
+        [HttpPost("DeleteAccount")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteAccount(string userId)
+        {
+            if (!IsSuperAdmin())
+                return Forbid();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                TempData["Error"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (user.Email?.ToLower() == SuperAdminEmail.ToLower())
+            {
+                TempData["Error"] = "Cannot delete the super admin account.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var email = user.Email;
+            var result = await _userManager.DeleteAsync(user);
+
+            if (result.Succeeded)
+            {
+                TempData["Success"] = $"{email}'s account has been permanently deleted.";
+            }
+            else
+            {
+                TempData["Error"] = $"Failed to delete {email}: " + string.Join(", ", result.Errors.Select(e => e.Description));
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

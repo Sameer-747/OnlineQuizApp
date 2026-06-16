@@ -103,6 +103,28 @@ namespace OnlineQuizApp.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // POST: /Admin/Quiz/BulkDelete
+        [HttpPost("BulkDelete")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BulkDelete(List<int> selectedIds)
+        {
+            if (selectedIds == null || selectedIds.Count == 0)
+            {
+                TempData["Error"] = "No quizzes were selected.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var quizzesToDelete = await _context.Quizzes
+                .Where(q => selectedIds.Contains(q.Id))
+                .ToListAsync();
+
+            _context.Quizzes.RemoveRange(quizzesToDelete);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"{quizzesToDelete.Count} quiz(zes) deleted successfully.";
+            return RedirectToAction(nameof(Index));
+        }
+
         private async Task PopulateCategoriesAsync()
         {
             ViewBag.Categories = new SelectList(await _context.Categories.ToListAsync(), "Id", "Name");

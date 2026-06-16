@@ -44,13 +44,13 @@ namespace OnlineQuizApp.Data
                 .HasOne(a => a.Quiz)
                 .WithMany()
                 .HasForeignKey(a => a.QuizId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<QuizAttempt>()
                 .HasOne(a => a.User)
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<UserAnswer>()
                 .HasOne(ua => ua.QuizAttempt)
@@ -62,13 +62,13 @@ namespace OnlineQuizApp.Data
                 .HasOne(ua => ua.Question)
                 .WithMany()
                 .HasForeignKey(ua => ua.QuestionId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<UserAnswer>()
                 .HasOne(ua => ua.SelectedOption)
                 .WithMany()
                 .HasForeignKey(ua => ua.SelectedOptionId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

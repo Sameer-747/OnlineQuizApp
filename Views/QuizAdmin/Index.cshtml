@@ -3,27 +3,76 @@
     ViewData["Title"] = "Manage Quizzes";
 }
 
-<h2>Manage Quizzes</h2>
-<a asp-action="Create" class="btn btn-primary mb-3">+ New Quiz</a>
+<h2><i class="ti ti-settings me-2"></i>Manage Quizzes</h2>
 
-<table class="table table-striped">
-    <thead>
-        <tr><th>Title</th><th>Category</th><th>Duration</th><th>Questions</th><th></th></tr>
-    </thead>
-    <tbody>
-        @foreach (var quiz in Model)
-        {
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="ti ti-check me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a asp-action="Create" class="btn btn-primary">+ New Quiz</a>
+    <button type="submit" form="bulkDeleteForm" class="btn btn-danger" id="bulkDeleteBtn" disabled
+            onclick="return confirm('Permanently delete the selected quiz(zes)? This also removes all related questions, options, and student attempts.');">
+        <i class="ti ti-trash me-1"></i>Delete Selected
+    </button>
+</div>
+
+<form id="bulkDeleteForm" method="post" asp-action="BulkDelete">
+    @Html.AntiForgeryToken()
+    <table class="table table-striped">
+        <thead>
             <tr>
-                <td>@quiz.Title</td>
-                <td>@quiz.Category?.Name</td>
-                <td>@quiz.DurationMinutes min</td>
-                <td>@quiz.Questions.Count</td>
-                <td>
-                    <a asp-controller="Question" asp-action="Index" asp-route-quizId="@quiz.Id" class="btn btn-sm btn-outline-primary">Questions</a>
-                    <a asp-action="Edit" asp-route-id="@quiz.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
-                    <a asp-action="Delete" asp-route-id="@quiz.Id" class="btn btn-sm btn-outline-danger">Delete</a>
-                </td>
+                <th><input type="checkbox" id="selectAll" /></th>
+                <th>Title</th><th>Category</th><th>Duration</th><th>Questions</th><th></th>
             </tr>
+        </thead>
+        <tbody>
+            @foreach (var quiz in Model)
+            {
+                <tr>
+                    <td><input type="checkbox" name="selectedIds" value="@quiz.Id" class="rowCheckbox" /></td>
+                    <td>@quiz.Title</td>
+                    <td>@quiz.Category?.Name</td>
+                    <td>@quiz.DurationMinutes min</td>
+                    <td>@quiz.Questions.Count</td>
+                    <td>
+                        <a asp-controller="Question" asp-action="Index" asp-route-quizId="@quiz.Id" class="btn btn-sm btn-outline-primary">Questions</a>
+                        <a asp-action="Edit" asp-route-id="@quiz.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <a asp-action="Delete" asp-route-id="@quiz.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</form>
+
+@section Scripts {
+    <script>
+        const selectAll = document.getElementById('selectAll');
+        const rowCheckboxes = document.querySelectorAll('.rowCheckbox');
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+        function updateBulkDeleteState() {
+            const anyChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
+            bulkDeleteBtn.disabled = !anyChecked;
         }
-    </tbody>
-</table>
+
+        selectAll?.addEventListener('change', function () {
+            rowCheckboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateBulkDeleteState();
+        });
+
+        rowCheckboxes.forEach(cb => cb.addEventListener('change', updateBulkDeleteState));
+    </script>
+}
