@@ -44,6 +44,7 @@
             let duration = @Model.DurationMinutes * 60; // seconds
             const timerEl = document.getElementById('timer');
             const form = document.getElementById('quizForm');
+            let isSubmitting = false;
 
             function updateTimer() {
                 const minutes = Math.floor(duration / 60);
@@ -52,6 +53,7 @@
 
                 if (duration <= 0) {
                     clearInterval(interval);
+                    isSubmitting = true;
                     form.submit();
                     return;
                 }
@@ -60,6 +62,19 @@
 
             updateTimer();
             const interval = setInterval(updateTimer, 1000);
+
+            // Warn before leaving the page (back button, refresh, close tab)
+            window.addEventListener('beforeunload', function (e) {
+                if (isSubmitting) return;
+                e.preventDefault();
+                e.returnValue = 'If you leave this page, your quiz attempt will be lost and you will not be able to retake it. Are you sure you want to leave?';
+                return e.returnValue;
+            });
+
+            // Don't warn when the form is actually being submitted
+            form.addEventListener('submit', function () {
+                isSubmitting = true;
+            });
         })();
     </script>
 }
