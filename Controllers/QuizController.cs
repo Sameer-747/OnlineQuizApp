@@ -32,6 +32,20 @@ namespace OnlineQuizApp.Controllers
             ViewBag.Categories = await _context.Categories.ToListAsync();
             ViewBag.SelectedCategoryId = categoryId;
 
+            var attemptedQuizMap = new Dictionary<int, int>(); // quizId -> attemptId
+
+            if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
+            {
+                var userId = _userManager.GetUserId(User);
+                attemptedQuizMap = await _context.QuizAttempts
+                    .Where(a => a.UserId == userId)
+                    .GroupBy(a => a.QuizId)
+                    .Select(g => new { QuizId = g.Key, AttemptId = g.Max(a => a.Id) })
+                    .ToDictionaryAsync(x => x.QuizId, x => x.AttemptId);
+            }
+
+            ViewBag.AttemptedQuizMap = attemptedQuizMap;
+
             return View(await query.ToListAsync());
         }
 
@@ -52,6 +66,23 @@ namespace OnlineQuizApp.Controllers
         // GET: /Quiz/Take/5
         public async Task<IActionResult> Take(int id)
         {
+            var userId = _userManager.GetUserId(User);
+
+            // Block retakes for non-admins: one attempt per quiz, ever.
+            if (!User.IsInRole("Admin"))
+            {
+                var existingAttempt = await _context.QuizAttempts
+                    .Where(a => a.QuizId == id && a.UserId == userId)
+                    .OrderByDescending(a => a.CompletedAt)
+                    .FirstOrDefaultAsync();
+
+                if (existingAttempt != null)
+                {
+                    TempData["Info"] = "You have already attempted this quiz.";
+                    return RedirectToAction(nameof(Result), new { attemptId = existingAttempt.Id });
+                }
+            }
+
             var quiz = await _context.Quizzes
                 .Include(q => q.Questions)
                     .ThenInclude(q => q.Options)
@@ -93,6 +124,20 @@ namespace OnlineQuizApp.Controllers
                 .FirstOrDefaultAsync(q => q.Id == submission.QuizId);
 
             if (quiz == null) return NotFound();
+
+            if (!User.IsInRole("Admin"))
+            {
+                var existingAttempt = await _context.QuizAttempts
+                    .Where(a => a.QuizId == submission.QuizId && a.UserId == userId)
+                    .OrderByDescending(a => a.CompletedAt)
+                    .FirstOrDefaultAsync();
+
+                if (existingAttempt != null)
+                {
+                    TempData["Info"] = "You have already attempted this quiz.";
+                    return RedirectToAction(nameof(Result), new { attemptId = existingAttempt.Id });
+                }
+            }
 
             var attempt = new QuizAttempt
             {

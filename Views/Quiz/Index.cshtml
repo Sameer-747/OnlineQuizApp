@@ -3,9 +3,18 @@
     ViewData["Title"] = "Quizzes";
     var categories = ViewBag.Categories as List<Category> ?? new List<Category>();
     int? selectedCategoryId = ViewBag.SelectedCategoryId;
+    var attemptedQuizMap = ViewBag.AttemptedQuizMap as Dictionary<int, int> ?? new Dictionary<int, int>();
 }
 
 <h2 class="mb-3"><i class="ti ti-list-details me-2"></i>Available Quizzes</h2>
+
+@if (TempData["Info"] != null)
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="ti ti-info-circle me-2"></i>@TempData["Info"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
 
 <div class="mb-4">
     <div class="btn-group flex-wrap" role="group">
@@ -40,9 +49,18 @@
                         <a asp-action="Details" asp-route-id="@quiz.Id" class="btn btn-outline-secondary btn-sm">
                             <i class="ti ti-info-circle me-1"></i>Details
                         </a>
-                        <a asp-action="Take" asp-route-id="@quiz.Id" class="btn btn-primary btn-sm">
-                            <i class="ti ti-player-play me-1"></i>Take Quiz
-                        </a>
+                        @if (attemptedQuizMap.ContainsKey(quiz.Id))
+                        {
+                            <a asp-action="Result" asp-route-attemptId="@attemptedQuizMap[quiz.Id]" class="btn btn-secondary btn-sm">
+                                <i class="ti ti-circle-check me-1"></i>Already Attempted
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="Take" asp-route-id="@quiz.Id" class="btn btn-primary btn-sm">
+                                <i class="ti ti-player-play me-1"></i>Take Quiz
+                            </a>
+                        }
                     </div>
                 </div>
             </div>
