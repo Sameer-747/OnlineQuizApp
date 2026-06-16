@@ -31,7 +31,10 @@ namespace OnlineQuizApp.Controllers
             if (!IsSuperAdmin())
                 return Forbid();
 
-            var allUsers = await _context.Users.OrderBy(u => u.Email).ToListAsync();
+            var allUsers = await _context.Users
+                .Where(u => u.Email != null && u.Email.ToLower().EndsWith("@quizapp.com"))
+                .OrderBy(u => u.Email)
+                .ToListAsync();
 
             var adminRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
             var adminUserIds = new HashSet<string>();
@@ -61,6 +64,12 @@ namespace OnlineQuizApp.Controllers
             if (user == null)
             {
                 TempData["Error"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (user.Email == null || !user.Email.ToLower().EndsWith("@quizapp.com"))
+            {
+                TempData["Error"] = "Only @quizapp.com users can be made Admin.";
                 return RedirectToAction(nameof(Index));
             }
 
