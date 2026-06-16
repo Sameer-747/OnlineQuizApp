@@ -13,6 +13,7 @@ namespace OnlineQuizApp.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private const string SuperAdminEmail = "admin@quizapp.com";
 
         public AdminManagementController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
         {
@@ -20,10 +21,16 @@ namespace OnlineQuizApp.Controllers
             _userManager = userManager;
         }
 
+        private bool IsSuperAdmin() =>
+            User.Identity?.Name?.ToLower() == SuperAdminEmail.ToLower();
+
         // GET: /Admin/Admins
         [HttpGet("")]
         public async Task<IActionResult> Index()
         {
+            if (!IsSuperAdmin())
+                return Forbid();
+
             var allUsers = await _context.Users.OrderBy(u => u.Email).ToListAsync();
 
             var adminRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
@@ -47,6 +54,9 @@ namespace OnlineQuizApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Promote(string userId)
         {
+            if (!IsSuperAdmin())
+                return Forbid();
+
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
@@ -68,6 +78,9 @@ namespace OnlineQuizApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Demote(string userId)
         {
+            if (!IsSuperAdmin())
+                return Forbid();
+
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
@@ -75,16 +88,11 @@ namespace OnlineQuizApp.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Prevent removing the last admin
-            var adminRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
-            if (adminRole != null)
+            // Prevent removing the super admin itself
+            if (user.Email?.ToLower() == SuperAdminEmail.ToLower())
             {
-                var adminCount = await _context.UserRoles.CountAsync(ur => ur.RoleId == adminRole.Id);
-                if (adminCount <= 1 && await _userManager.IsInRoleAsync(user, "Admin"))
-                {
-                    TempData["Error"] = "Cannot remove the last remaining Admin.";
-                    return RedirectToAction(nameof(Index));
-                }
+                TempData["Error"] = "Cannot remove the super admin.";
+                return RedirectToAction(nameof(Index));
             }
 
             if (await _userManager.IsInRoleAsync(user, "Admin"))
