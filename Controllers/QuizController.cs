@@ -29,7 +29,29 @@ namespace OnlineQuizApp.Controllers
             if (categoryId.HasValue)
                 query = query.Where(q => q.CategoryId == categoryId.Value);
 
-            ViewBag.Categories = await _context.Categories.ToListAsync();
+            // Students only see quizzes from their own section, plus any global (section-less) quizzes.
+            // Admins (any) see everything for now via Manage Quizzes; this page filters for students/anon.
+            int? studentSectionIdForCategories = null;
+            if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
+            {
+                var userId = _userManager.GetUserId(User);
+                var currentUser = await _context.Users.FindAsync(userId);
+                var studentSectionId = currentUser?.SectionId;
+                studentSectionIdForCategories = studentSectionId;
+
+                query = query.Where(q => q.SectionId == null || q.SectionId == studentSectionId);
+            }
+
+            var categoryQuery = _context.Categories.AsQueryable();
+            if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
+            {
+                categoryQuery = categoryQuery.Where(c => c.SectionId == null || c.SectionId == studentSectionIdForCategories);
+            }
+            else if (User.Identity?.IsAuthenticated != true)
+            {
+                categoryQuery = categoryQuery.Where(c => c.SectionId == null);
+            }
+            ViewBag.Categories = await categoryQuery.ToListAsync();
             ViewBag.SelectedCategoryId = categoryId;
 
             var attemptedQuizMap = new Dictionary<int, int>(); // quizId -> attemptId
@@ -67,6 +89,20 @@ namespace OnlineQuizApp.Controllers
         public async Task<IActionResult> Take(int id)
         {
             var userId = _userManager.GetUserId(User);
+
+            if (!User.IsInRole("Admin"))
+            {
+                var currentUser = await _context.Users.FindAsync(userId);
+                var quizSectionId = await _context.Quizzes
+                    .Where(q => q.Id == id)
+                    .Select(q => q.SectionId)
+                    .FirstOrDefaultAsync();
+
+                if (quizSectionId != null && quizSectionId != currentUser?.SectionId)
+                {
+                    return Forbid();
+                }
+            }
 
             // Block retakes for non-admins: one attempt per quiz, ever.
             if (!User.IsInRole("Admin"))

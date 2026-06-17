@@ -20,6 +20,10 @@ namespace OnlineQuizApp.Models
         [Range(1, 240)]
         public int DurationMinutes { get; set; } = 10;
 
+        // The section this quiz belongs to. Null = visible to everyone (legacy/global quizzes).
+        public int? SectionId { get; set; }
+        public Section? Section { get; set; }
+
         public ICollection<Question> Questions { get; set; } = new List<Question>();
     }
 }

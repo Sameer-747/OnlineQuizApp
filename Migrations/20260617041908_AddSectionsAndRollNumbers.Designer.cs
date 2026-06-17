@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using OnlineQuizApp.Data;
@@ -11,9 +12,11 @@ using OnlineQuizApp.Data;
 namespace OnlineQuizApp.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617041908_AddSectionsAndRollNumbers")]
+    partial class AddSectionsAndRollNumbers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -250,12 +253,7 @@ namespace OnlineQuizApp.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<int?>("SectionId")
-                        .HasColumnType("integer");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("SectionId");
 
                     b.ToTable("Categories");
                 });
@@ -481,16 +479,6 @@ namespace OnlineQuizApp.Migrations
                 });
 
             modelBuilder.Entity("OnlineQuizApp.Models.ApplicationUser", b =>
-                {
-                    b.HasOne("OnlineQuizApp.Models.Section", "Section")
-                        .WithMany()
-                        .HasForeignKey("SectionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Section");
-                });
-
-            modelBuilder.Entity("OnlineQuizApp.Models.Category", b =>
                 {
                     b.HasOne("OnlineQuizApp.Models.Section", "Section")
                         .WithMany()

@@ -1,0 +1,76 @@
+@using OnlineQuizApp.Models
+@model List<Section>
+@{
+    ViewData["Title"] = "Manage Sections";
+    var eligibleAdmins = ViewBag.EligibleAdmins as List<ApplicationUser> ?? new List<ApplicationUser>();
+}
+
+<h2><i class="ti ti-building-community me-2"></i>Manage Sections</h2>
+<p class="text-muted">Create sections (branches/classrooms) and assign one admin to each.</p>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="ti ti-check me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form method="post" asp-controller="SectionManagement" asp-action="Create" class="d-flex gap-2 mb-4">
+    @Html.AntiForgeryToken()
+    <input type="text" name="name" class="form-control" style="max-width:300px" placeholder="e.g. Branch A" required />
+    <button type="submit" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Add Section</button>
+</form>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Section</th>
+            <th>Assigned Admin</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var sec in Model)
+        {
+            <tr>
+                <td>@sec.Name</td>
+                <td>
+                    <form method="post" asp-controller="SectionManagement" asp-action="AssignAdmin" class="d-flex gap-2 align-items-center">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="sectionId" value="@sec.Id" />
+                        <select name="adminUserId" class="form-select form-select-sm" style="max-width:280px" onchange="this.form.submit()">
+                            <option value="">-- Unassigned --</option>
+                            @foreach (var admin in eligibleAdmins)
+                            {
+                                <option value="@admin.Id" selected="@(sec.AdminUserId == admin.Id)">@admin.Email</option>
+                            }
+                        </select>
+                    </form>
+                </td>
+                <td>
+                    <form method="post" asp-controller="SectionManagement" asp-action="Delete" style="display:inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="sectionId" value="@sec.Id" />
+                        <button type="submit" class="btn btn-sm btn-danger"
+                                onclick="return confirm('Delete section @sec.Name? Students and quizzes in it will become unassigned, not deleted.')">
+                            <i class="ti ti-trash me-1"></i>Delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info"><i class="ti ti-info-circle me-1"></i>No sections yet. Add one above.</div>
+}

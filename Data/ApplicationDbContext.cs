@@ -17,16 +17,46 @@ namespace OnlineQuizApp.Data
         public DbSet<Option> Options { get; set; } = default!;
         public DbSet<QuizAttempt> QuizAttempts { get; set; } = default!;
         public DbSet<UserAnswer> UserAnswers { get; set; } = default!;
+        public DbSet<Section> Sections { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            builder.Entity<ApplicationUser>()
+                .HasIndex(u => u.RollNumber)
+                .IsUnique()
+                .HasFilter("\"RollNumber\" IS NOT NULL");
+
+            builder.Entity<ApplicationUser>()
+                .HasOne(u => u.Section)
+                .WithMany()
+                .HasForeignKey(u => u.SectionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Section>()
+                .HasOne(s => s.AdminUser)
+                .WithMany()
+                .HasForeignKey(s => s.AdminUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Quiz>()
+                .HasOne(q => q.Section)
+                .WithMany()
+                .HasForeignKey(q => q.SectionId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<Quiz>()
                 .HasOne(q => q.Category)
                 .WithMany(c => c.Quizzes)
                 .HasForeignKey(q => q.CategoryId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Category>()
+                .HasOne(c => c.Section)
+                .WithMany()
+                .HasForeignKey(c => c.SectionId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<Question>()
                 .HasOne(q => q.Quiz)

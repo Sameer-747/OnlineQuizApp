@@ -23,6 +23,28 @@
     </div>
 }
 
+<div class="card mb-4" style="max-width: 600px;">
+    <div class="card-body">
+        <h5 class="card-title"><i class="ti ti-user-plus me-1"></i>Create New Admin</h5>
+        <form method="post" asp-controller="AdminManagement" asp-action="CreateAdmin">
+            @Html.AntiForgeryToken()
+            <div class="mb-2">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="fullName" class="form-control" placeholder="e.g. Sonu" />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" placeholder="sonu@quizapp.com" required />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Password</label>
+                <input type="text" name="password" class="form-control" placeholder="Set a password to share with them" required minlength="6" />
+            </div>
+            <button type="submit" class="btn btn-primary mt-2"><i class="ti ti-plus me-1"></i>Create Admin</button>
+        </form>
+    </div>
+</div>
+
 <table class="table table-striped">
     <thead>
         <tr>

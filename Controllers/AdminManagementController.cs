@@ -52,6 +52,56 @@ namespace OnlineQuizApp.Controllers
             return View(allUsers);
         }
 
+        // POST: /Admin/Admins/CreateAdmin
+        [HttpPost("CreateAdmin")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateAdmin(string email, string fullName, string password)
+        {
+            if (!IsSuperAdmin())
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            {
+                TempData["Error"] = "Email and password are required.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!email.ToLower().EndsWith("@quizapp.com"))
+            {
+                TempData["Error"] = "Admin email must end with @quizapp.com.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var existing = await _userManager.FindByEmailAsync(email);
+            if (existing != null)
+            {
+                TempData["Error"] = "An account with this email already exists.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var newAdmin = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                FullName = string.IsNullOrWhiteSpace(fullName) ? email : fullName,
+                EmailConfirmed = true
+            };
+
+            var result = await _userManager.CreateAsync(newAdmin, password);
+
+            if (result.Succeeded)
+            {
+                await _userManager.AddToRoleAsync(newAdmin, "Admin");
+                TempData["Success"] = $"Admin account created for {email}. Share these credentials with them: Email: {email}, Password: {password}";
+            }
+            else
+            {
+                TempData["Error"] = "Failed to create admin: " + string.Join(", ", result.Errors.Select(e => e.Description));
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
         // POST: /Admin/Admins/Promote
         [HttpPost("Promote")]
         [ValidateAntiForgeryToken]
