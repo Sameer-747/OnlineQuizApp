@@ -43,6 +43,13 @@
                         <h5 class="card-title mb-0">@quiz.Title</h5>
                     </div>
                     <p class="mb-1" style="color:#5b5b7a;"><i class="ti ti-category me-1"></i>@quiz.Category?.Name</p>
+                    <p class="mb-1" style="color:#8a8aa3; font-size:0.85rem;">
+                        <i class="ti ti-user me-1"></i>By: @(quiz.CreatedByUser?.FullName ?? quiz.CreatedByUser?.Email ?? "Admin")
+                        @if (quiz.Section != null)
+                        {
+                            <span> &middot; <i class="ti ti-building-community me-1"></i>@quiz.Section.Name</span>
+                        }
+                    </p>
                     <p class="card-text flex-grow-1">@quiz.Description</p>
                     <p class="mb-3"><span class="badge" style="background: rgba(110,142,251,0.18); color:#4b4b9a;"><i class="ti ti-clock me-1"></i>@quiz.DurationMinutes min</span></p>
                     <div class="d-flex gap-2">

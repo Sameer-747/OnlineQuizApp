@@ -21,21 +21,23 @@ namespace OnlineQuizApp.Controllers
         {
             var query = _context.Categories.Include(c => c.Quizzes).AsQueryable();
 
-            // Students (and anonymous visitors) only see categories from their own section, plus global ones.
-            // Admins see everything here for simplicity (this is just the landing page).
-            if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
+            bool isSuperAdmin = User.Identity?.Name?.ToLower() == "admin@quizapp.com";
+
+            if (User.Identity?.IsAuthenticated == true && !isSuperAdmin)
             {
+                // Both students AND section-admins only see their own section's categories, plus global ones.
                 var userId = _userManager.GetUserId(User);
                 var currentUser = await _context.Users.FindAsync(userId);
-                var studentSectionId = currentUser?.SectionId;
+                var ownSectionId = currentUser?.SectionId;
 
-                query = query.Where(c => c.SectionId == null || c.SectionId == studentSectionId);
+                query = query.Where(c => c.SectionId == null || c.SectionId == ownSectionId);
             }
             else if (User.Identity?.IsAuthenticated != true)
             {
                 // Anonymous visitors only see global categories.
                 query = query.Where(c => c.SectionId == null);
             }
+            // Super admin (isSuperAdmin == true) sees everything - no filter applied.
 
             var categories = await query.ToListAsync();
 

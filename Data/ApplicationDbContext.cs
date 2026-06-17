@@ -47,6 +47,12 @@ namespace OnlineQuizApp.Data
                 .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<Quiz>()
+                .HasOne(q => q.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(q => q.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Quiz>()
                 .HasOne(q => q.Category)
                 .WithMany(c => c.Quizzes)
                 .HasForeignKey(q => q.CategoryId)

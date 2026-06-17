@@ -24,28 +24,33 @@ namespace OnlineQuizApp.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Index(int? categoryId)
         {
-            var query = _context.Quizzes.Include(q => q.Category).AsQueryable();
+            var query = _context.Quizzes
+                .Include(q => q.Category)
+                .Include(q => q.Section)
+                .Include(q => q.CreatedByUser)
+                .AsQueryable();
 
             if (categoryId.HasValue)
                 query = query.Where(q => q.CategoryId == categoryId.Value);
 
-            // Students only see quizzes from their own section, plus any global (section-less) quizzes.
-            // Admins (any) see everything for now via Manage Quizzes; this page filters for students/anon.
-            int? studentSectionIdForCategories = null;
-            if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
+            // Students AND section-admins only see quizzes from their own section, plus truly global quizzes.
+            // Only the super admin sees everything unfiltered.
+            bool isSuperAdmin = User.Identity?.Name?.ToLower() == "admin@quizapp.com";
+            int? viewerSectionId = null;
+
+            if (User.Identity?.IsAuthenticated == true && !isSuperAdmin)
             {
                 var userId = _userManager.GetUserId(User);
                 var currentUser = await _context.Users.FindAsync(userId);
-                var studentSectionId = currentUser?.SectionId;
-                studentSectionIdForCategories = studentSectionId;
+                viewerSectionId = currentUser?.SectionId;
 
-                query = query.Where(q => q.SectionId == null || q.SectionId == studentSectionId);
+                query = query.Where(q => q.SectionId == null || q.SectionId == viewerSectionId);
             }
 
             var categoryQuery = _context.Categories.AsQueryable();
-            if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
+            if (User.Identity?.IsAuthenticated == true && !isSuperAdmin)
             {
-                categoryQuery = categoryQuery.Where(c => c.SectionId == null || c.SectionId == studentSectionIdForCategories);
+                categoryQuery = categoryQuery.Where(c => c.SectionId == null || c.SectionId == viewerSectionId);
             }
             else if (User.Identity?.IsAuthenticated != true)
             {
@@ -89,8 +94,9 @@ namespace OnlineQuizApp.Controllers
         public async Task<IActionResult> Take(int id)
         {
             var userId = _userManager.GetUserId(User);
+            bool isSuperAdmin = User.Identity?.Name?.ToLower() == "admin@quizapp.com";
 
-            if (!User.IsInRole("Admin"))
+            if (!isSuperAdmin)
             {
                 var currentUser = await _context.Users.FindAsync(userId);
                 var quizSectionId = await _context.Quizzes

@@ -95,6 +95,7 @@ namespace OnlineQuizApp.Controllers
             // Auto-tag the quiz with the creating admin's section.
             // Super admin's quizzes remain section-less (global/visible to everyone) unless edited later.
             quiz.SectionId = isSuper ? null : sectionId;
+            quiz.CreatedByUserId = _userManager.GetUserId(User);
 
             _context.Quizzes.Add(quiz);
             await _context.SaveChangesAsync();

@@ -24,6 +24,10 @@ namespace OnlineQuizApp.Models
         public int? SectionId { get; set; }
         public Section? Section { get; set; }
 
+        // The admin who created this quiz.
+        public string? CreatedByUserId { get; set; }
+        public ApplicationUser? CreatedByUser { get; set; }
+
         public ICollection<Question> Questions { get; set; } = new List<Question>();
     }
 }
