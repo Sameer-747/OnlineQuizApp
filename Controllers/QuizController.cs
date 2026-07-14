@@ -137,16 +137,20 @@ namespace OnlineQuizApp.Controllers
                 QuizId = quiz.Id,
                 Title = quiz.Title,
                 DurationMinutes = quiz.DurationMinutes,
-                Questions = quiz.Questions.Select(q => new QuestionPlayViewModel
-                {
-                    QuestionId = q.Id,
-                    Text = q.Text,
-                    Options = q.Options.Select(o => new OptionPlayViewModel
+                Questions = quiz.Questions
+                    .OrderBy(_ => Guid.NewGuid())
+                    .Select(q => new QuestionPlayViewModel
                     {
-                        OptionId = o.Id,
-                        Text = o.Text
+                        QuestionId = q.Id,
+                        Text = q.Text,
+                        Options = q.Options
+                            .OrderBy(_ => Guid.NewGuid())
+                            .Select(o => new OptionPlayViewModel
+                            {
+                                OptionId = o.Id,
+                                Text = o.Text
+                            }).ToList()
                     }).ToList()
-                }).ToList()
             };
 
             return View(viewModel);
