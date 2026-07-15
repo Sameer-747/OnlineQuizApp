@@ -4,7 +4,12 @@
 }
 
 <h2>Questions for: @Model.Title</h2>
-<a asp-action="Create" asp-route-quizId="@Model.Id" class="btn btn-primary mb-3">+ New Question</a>
+<div class="d-flex gap-2 mb-3">
+    <a asp-action="Create" asp-route-quizId="@Model.Id" class="btn btn-primary">+ New Question</a>
+    <a asp-controller="AIGenerate" asp-action="Index" asp-route-quizId="@Model.Id" class="btn btn-outline-primary">
+        <i class="ti ti-sparkles me-1"></i>Generate with AI
+    </a>
+</div>
 
 @for (int i = 0; i < Model.Questions.Count; i++)
 {

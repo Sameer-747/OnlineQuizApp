@@ -1,0 +1,222 @@
+@{
+    ViewData["Title"] = "AI Generate Questions";
+    int quizId = ViewBag.QuizId;
+    string quizTitle = ViewBag.QuizTitle;
+}
+
+<div class="d-flex align-items-center gap-3 mb-3">
+    <a asp-controller="Question" asp-action="Index" asp-route-quizId="@quizId" class="btn btn-outline-secondary btn-sm">
+        <i class="ti ti-arrow-left me-1"></i>Back to Questions
+    </a>
+    <h2 class="mb-0"><i class="ti ti-sparkles me-2"></i>AI Generate Questions</h2>
+</div>
+<p class="text-muted">For quiz: <strong>@quizTitle</strong></p>
+
+<div id="ai-app"
+     data-quiz-id="@quizId"
+     data-token="@Html.AntiForgeryToken()"></div>
+
+@Html.AntiForgeryToken()
+
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+function AIGenerateApp({ quizId }) {
+    const [topic, setTopic] = useState('');
+    const [count, setCount] = useState(5);
+    const [difficulty, setDifficulty] = useState('medium');
+    const [loading, setLoading] = useState(false);
+    const [questions, setQuestions] = useState([]);
+    const [error, setError] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    function getToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+    }
+
+    async function generateQuestions() {
+        if (!topic.trim()) { setError('Please enter a topic.'); return; }
+        setLoading(true); setError(''); setQuestions([]); setSaved(false);
+
+        try {
+            const res = await fetch('/Admin/AIGenerate/Generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getToken()
+                },
+                body: JSON.stringify({ topic, count, difficulty })
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                setError(err.error || 'Failed to generate questions. Please try again.');
+                return;
+            }
+
+            const parsed = await res.json();
+            setQuestions(parsed.map(q => ({
+                text: q.text,
+                options: q.options.map(o => ({ text: o })),
+                correctIndex: q.correctIndex
+            })));
+        } catch (e) {
+            setError('Failed to generate questions. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function updateQuestionText(i, val) {
+        const updated = [...questions];
+        updated[i] = { ...updated[i], text: val };
+        setQuestions(updated);
+    }
+
+    function updateOptionText(qi, oi, val) {
+        const updated = [...questions];
+        updated[qi].options[oi] = { text: val };
+        setQuestions(updated);
+    }
+
+    function setCorrect(qi, oi) {
+        const updated = [...questions];
+        updated[qi] = { ...updated[qi], correctIndex: oi };
+        setQuestions(updated);
+    }
+
+    function removeQuestion(i) {
+        setQuestions(questions.filter((_, idx) => idx !== i));
+    }
+
+    async function saveAll() {
+        setSaving(true); setError('');
+        try {
+            const res = await fetch('/Admin/AIGenerate/SaveQuestions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getToken()
+                },
+                body: JSON.stringify({ quizId: parseInt(quizId), questions })
+            });
+            if (res.ok) {
+                setSaved(true);
+                setQuestions([]);
+            } else {
+                setError('Failed to save. Please try again.');
+            }
+        } catch (e) {
+            setError('Save failed. Please try again.');
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <div>
+            <div className="card mb-4" style={{maxWidth:'640px'}}>
+                <div className="card-body">
+                    <div className="mb-3">
+                        <label className="form-label fw-semibold">Topic / Subject</label>
+                        <input
+                            className="form-control"
+                            placeholder="e.g. Python basics, World War II, Human digestive system"
+                            value={topic}
+                            onChange={e => setTopic(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && generateQuestions()}
+                        />
+                    </div>
+                    <div className="row g-3 mb-3">
+                        <div className="col-6">
+                            <label className="form-label fw-semibold">Number of Questions</label>
+                            <select className="form-select" value={count} onChange={e => setCount(parseInt(e.target.value))}>
+                                {[5,10,15,20,25,30].map(n => <option key={n} value={n}>{n} questions</option>)}
+                            </select>
+                        </div>
+                        <div className="col-6">
+                            <label className="form-label fw-semibold">Difficulty</label>
+                            <select className="form-select" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button className="btn btn-primary w-100" onClick={generateQuestions} disabled={loading}>
+                        {loading
+                            ? <><span className="spinner-border spinner-border-sm me-2"></span>Generating...</>
+                            : <><i className="ti ti-sparkles me-2"></i>Generate Questions</>}
+                    </button>
+                </div>
+            </div>
+
+            {error && <div className="alert alert-danger">{error}</div>}
+
+            {saved && (
+                <div className="alert alert-success">
+                    <i className="ti ti-check me-2"></i>Questions saved successfully!
+                    <a href={`/Admin/Question?quizId=${quizId}`} className="btn btn-sm btn-success ms-3">View Questions</a>
+                </div>
+            )}
+
+            {questions.length > 0 && (
+                <div>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h5 className="mb-0">{questions.length} questions generated — review and edit before saving</h5>
+                        <button className="btn btn-success" onClick={saveAll} disabled={saving}>
+                            {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : <><i className="ti ti-device-floppy me-2"></i>Save All to Quiz</>}
+                        </button>
+                    </div>
+
+                    {questions.map((q, qi) => (
+                        <div key={qi} className="card mb-3">
+                            <div className="card-body">
+                                <div className="d-flex justify-content-between mb-2">
+                                    <span className="fw-bold text-primary">Q{qi + 1}</span>
+                                    <button className="btn btn-sm btn-outline-danger" onClick={() => removeQuestion(qi)}>
+                                        <i className="ti ti-trash"></i>
+                                    </button>
+                                </div>
+                                <textarea className="form-control mb-3" rows={2} value={q.text}
+                                    onChange={e => updateQuestionText(qi, e.target.value)} />
+                                {q.options.map((opt, oi) => (
+                                    <div key={oi} className={`input-group mb-2 ${oi === q.correctIndex ? 'border border-success rounded' : ''}`}>
+                                        <span className="input-group-text">
+                                            <input type="radio" name={`correct-${qi}`}
+                                                checked={oi === q.correctIndex}
+                                                onChange={() => setCorrect(qi, oi)}
+                                                title="Mark as correct answer" />
+                                        </span>
+                                        <input type="text" className="form-control" value={opt.text}
+                                            onChange={e => updateOptionText(qi, oi, e.target.value)}
+                                            placeholder={`Option ${String.fromCharCode(65 + oi)}`} />
+                                        {oi === q.correctIndex && (
+                                            <span className="input-group-text text-success fw-bold">✓ Correct</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+
+                    <div className="text-end mb-4">
+                        <button className="btn btn-success btn-lg" onClick={saveAll} disabled={saving}>
+                            {saving ? 'Saving...' : `Save All ${questions.length} Questions to Quiz`}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const container = document.getElementById('ai-app');
+const quizId = container.getAttribute('data-quiz-id');
+ReactDOM.render(<AIGenerateApp quizId={quizId} />, container);
+</script>
