@@ -18,51 +18,17 @@ namespace OnlineQuizApp.Data
         public DbSet<QuizAttempt> QuizAttempts { get; set; } = default!;
         public DbSet<UserAnswer> UserAnswers { get; set; } = default!;
         public DbSet<Section> Sections { get; set; } = default!;
+        public DbSet<StudentBadge> StudentBadges { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-
-            builder.Entity<ApplicationUser>()
-                .HasIndex(u => u.RollNumber)
-                .IsUnique()
-                .HasFilter("\"RollNumber\" IS NOT NULL");
-
-            builder.Entity<ApplicationUser>()
-                .HasOne(u => u.Section)
-                .WithMany()
-                .HasForeignKey(u => u.SectionId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            builder.Entity<Section>()
-                .HasOne(s => s.AdminUser)
-                .WithMany()
-                .HasForeignKey(s => s.AdminUserId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            builder.Entity<Quiz>()
-                .HasOne(q => q.Section)
-                .WithMany()
-                .HasForeignKey(q => q.SectionId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            builder.Entity<Quiz>()
-                .HasOne(q => q.CreatedByUser)
-                .WithMany()
-                .HasForeignKey(q => q.CreatedByUserId)
-                .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<Quiz>()
                 .HasOne(q => q.Category)
                 .WithMany(c => c.Quizzes)
                 .HasForeignKey(q => q.CategoryId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            builder.Entity<Category>()
-                .HasOne(c => c.Section)
-                .WithMany()
-                .HasForeignKey(c => c.SectionId)
-                .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<Question>()
                 .HasOne(q => q.Quiz)
@@ -80,13 +46,13 @@ namespace OnlineQuizApp.Data
                 .HasOne(a => a.Quiz)
                 .WithMany()
                 .HasForeignKey(a => a.QuizId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<QuizAttempt>()
                 .HasOne(a => a.User)
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<UserAnswer>()
                 .HasOne(ua => ua.QuizAttempt)
@@ -98,13 +64,69 @@ namespace OnlineQuizApp.Data
                 .HasOne(ua => ua.Question)
                 .WithMany()
                 .HasForeignKey(ua => ua.QuestionId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<UserAnswer>()
                 .HasOne(ua => ua.SelectedOption)
                 .WithMany()
                 .HasForeignKey(ua => ua.SelectedOptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Section relationships - explicit to avoid EF ambiguity
+            builder.Entity<ApplicationUser>()
+                .HasOne(u => u.Section)
+                .WithMany()
+                .HasForeignKey(u => u.SectionId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            builder.Entity<Section>()
+                .HasOne(s => s.AdminUser)
+                .WithMany()
+                .HasForeignKey(s => s.AdminUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            // Quiz Section and CreatedBy
+            builder.Entity<Quiz>()
+                .HasOne(q => q.Section)
+                .WithMany()
+                .HasForeignKey(q => q.SectionId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            builder.Entity<Quiz>()
+                .HasOne(q => q.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(q => q.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            // Category Section
+            builder.Entity<Category>()
+                .HasOne(c => c.Section)
+                .WithMany()
+                .HasForeignKey(c => c.SectionId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            // RollNumber unique index
+            builder.Entity<ApplicationUser>()
+                .HasIndex(u => u.RollNumber)
+                .IsUnique()
+                .HasFilter("\"RollNumber\" IS NOT NULL");
+
+            builder.Entity<StudentBadge>()
+                .HasOne(b => b.User)
+                .WithMany()
+                .HasForeignKey(b => b.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StudentBadge>()
+                .HasOne(b => b.QuizAttempt)
+                .WithMany()
+                .HasForeignKey(b => b.QuizAttemptId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

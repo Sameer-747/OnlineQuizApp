@@ -1,0 +1,117 @@
+@using OnlineQuizApp.Models
+@model List<StudentBadge>
+@{
+    ViewData["Title"] = "My Badges & Streaks";
+    int currentStreak = ViewBag.CurrentStreak;
+    int longestStreak = ViewBag.LongestStreak;
+    int totalAttempts = ViewBag.TotalAttempts;
+    double avgScore = ViewBag.AvgScore;
+}
+
+<h2><i class="ti ti-award me-2"></i>My Badges & Streaks</h2>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100" style="border:2px solid #FF8C00;">
+            <div class="card-body py-3">
+                <div style="font-size:2rem;">🔥</div>
+                <div class="fw-bold fs-4">@currentStreak</div>
+                <div class="text-muted small">Current Streak</div>
+                <div class="text-muted" style="font-size:0.75rem;">days in a row</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100" style="border:2px solid #A855F7;">
+            <div class="card-body py-3">
+                <div style="font-size:2rem;">⭐</div>
+                <div class="fw-bold fs-4">@longestStreak</div>
+                <div class="text-muted small">Longest Streak</div>
+                <div class="text-muted" style="font-size:0.75rem;">best record</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100" style="border:2px solid #4ECDC4;">
+            <div class="card-body py-3">
+                <div style="font-size:2rem;">📝</div>
+                <div class="fw-bold fs-4">@totalAttempts</div>
+                <div class="text-muted small">Quizzes Done</div>
+                <div class="text-muted" style="font-size:0.75rem;">total attempts</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100" style="border:2px solid #22C55E;">
+            <div class="card-body py-3">
+                <div style="font-size:2rem;">🎯</div>
+                <div class="fw-bold fs-4">@avgScore%</div>
+                <div class="text-muted small">Avg Score</div>
+                <div class="text-muted" style="font-size:0.75rem;">across all quizzes</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Badges -->
+<h4 class="mb-3"><i class="ti ti-medal me-2"></i>Earned Badges (@Model.Count)</h4>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        <i class="ti ti-info-circle me-2"></i>No badges yet — take some quizzes to earn them!
+    </div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        @foreach (var badge in Model)
+        {
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card text-center h-100 shadow-sm" style="border:2px solid @badge.Color;">
+                    <div class="card-body py-3">
+                        <div style="font-size:2.5rem;">@badge.Icon</div>
+                        <div class="fw-bold mt-1">@badge.Name</div>
+                        <div class="text-muted small mt-1">@badge.Description</div>
+                        <div class="mt-2" style="font-size:0.75rem;color:#aaa;">
+                            Earned @badge.EarnedAt.ToString("dd MMM yyyy")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- All available badges (locked ones shown greyed out) -->
+<h5 class="mb-3 text-muted">All Badges</h5>
+<div class="row g-3">
+    @{
+        var earnedTypes = Model.Select(b => b.BadgeType).ToHashSet();
+        var allBadgeTypes = Enum.GetValues<BadgeType>();
+    }
+    @foreach (var badgeType in allBadgeTypes)
+    {
+        var earned = earnedTypes.Contains(badgeType);
+        var temp = new StudentBadge { BadgeType = badgeType };
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="card text-center h-100 @(earned ? "" : "opacity-50")"
+                 style="border:2px solid @(earned ? temp.Color : "#ccc");">
+                <div class="card-body py-3">
+                    <div style="font-size:2rem;">@(earned ? temp.Icon : "🔒")</div>
+                    <div class="fw-bold mt-1">@temp.Name</div>
+                    <div class="text-muted small mt-1">@temp.Description</div>
+                    @if (earned)
+                    {
+                        <span class="badge mt-2" style="background:@temp.Color;">Earned</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary mt-2">Locked</span>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -14,33 +14,46 @@
             <div asp-validation-summary="All" class="text-danger"></div>
 
             <div class="form-floating mb-3">
-                <input asp-for="Input.FullName" class="form-control" placeholder="Full Name" />
+                <input asp-for="Input.FullName" class="form-control" placeholder="e.g. Sameer Shaik" />
                 <label asp-for="Input.FullName">Full Name</label>
                 <span asp-validation-for="Input.FullName" class="text-danger"></span>
             </div>
-            <div class="form-floating mb-3">
+            <div class="form-floating mb-1">
                 <input asp-for="Input.RollNumber" class="form-control" placeholder="Roll Number" />
                 <label asp-for="Input.RollNumber">Roll Number</label>
                 <span asp-validation-for="Input.RollNumber" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <small class="text-muted"><i class="ti ti-info-circle me-1"></i>Enter your roll number in the format: <strong>RollNo@test.com</strong> &nbsp; e.g. <strong>21MCA001@test.com</strong></small>
             </div>
             <div class="form-floating mb-3">
                 <select asp-for="Input.SectionId" asp-items="Model.Sections" class="form-select">
                     <option value="">-- Select your Section --</option>
                 </select>
-                <label asp-for="Input.SectionId">Section</label>
+                <label asp-for="Input.SectionId">Section / Branch</label>
                 <span asp-validation-for="Input.SectionId" class="text-danger"></span>
             </div>
             <div class="form-floating mb-3">
-                <input asp-for="Input.Password" class="form-control" autocomplete="new-password" placeholder="password" />
+                <input asp-for="Input.Password" class="form-control" autocomplete="new-password" placeholder="Minimum 6 characters" />
                 <label asp-for="Input.Password">Password</label>
                 <span asp-validation-for="Input.Password" class="text-danger"></span>
             </div>
             <div class="form-floating mb-3">
-                <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="confirm password" />
+                <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="Re-enter your password" />
                 <label asp-for="Input.ConfirmPassword">Confirm Password</label>
                 <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
             </div>
+
+            <div class="alert alert-info py-2 mb-3" style="font-size:0.9rem;">
+                <i class="ti ti-login me-1"></i>
+                After registering, log in using: <strong>Roll Number + Section + Password</strong>
+            </div>
+
             <button id="studentRegisterSubmit" type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
+
+            <div class="mt-3 text-center">
+                <a asp-area="Identity" asp-page="/Account/Login">Already have an account? Log in</a>
+            </div>
         </form>
     </div>
 </div>

@@ -3,9 +3,10 @@
     ViewData["Title"] = "Student Results";
     var quizzes = ViewBag.Quizzes as List<Quiz> ?? new List<Quiz>();
     int? selectedQuizId = ViewBag.SelectedQuizId;
+    var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
 }
 
-<h2>Student Results</h2>
+<h2><i class="ti ti-chart-bar me-2"></i>Student Results</h2>
 
 <div class="mb-3">
     <div class="btn-group flex-wrap" role="group">
@@ -20,38 +21,55 @@
     </div>
 </div>
 
-<p class="text-muted">Total attempts: @Model.Count</p>
-
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Student</th>
-            <th>Email</th>
-            <th>Quiz</th>
-            <th>Score</th>
-            <th>Percentage</th>
-            <th>Completed At</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var attempt in Model)
-        {
-            var percentage = attempt.TotalQuestions > 0
-                ? (attempt.Score * 100.0 / attempt.TotalQuestions)
-                : 0;
-            <tr>
-                <td>@(attempt.User?.FullName ?? "—")</td>
-                <td>@attempt.User?.Email</td>
-                <td>@attempt.Quiz?.Title</td>
-                <td>@attempt.Score / @attempt.TotalQuestions</td>
-                <td>@percentage.ToString("0.0")%</td>
-                <td>@attempt.CompletedAt?.ToLocalTime().ToString("g")</td>
-            </tr>
-        }
-    </tbody>
-</table>
+<p class="text-muted">Total attempts: <strong>@Model.Count</strong> — sorted by highest score</p>
 
 @if (!Model.Any())
 {
     <div class="alert alert-info">No attempts yet.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Student</th>
+                <th>Roll No</th>
+                <th>Quiz</th>
+                <th>Score</th>
+                <th>Percentage</th>
+                <th>Completed At</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ int rank = 1; }
+            @foreach (var attempt in Model)
+            {
+                var percentage = attempt.TotalQuestions > 0
+                    ? (attempt.Score * 100.0 / attempt.TotalQuestions)
+                    : 0;
+                var completedIst = attempt.CompletedAt.HasValue
+                    ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(attempt.CompletedAt.Value, DateTimeKind.Utc), ist)
+                    : (DateTime?)null;
+
+                string rankBadge = rank == 1 ? "🥇" : rank == 2 ? "🥈" : rank == 3 ? "🥉" : $"#{rank}";
+                string rowClass = rank == 1 ? "table-warning" : rank == 2 ? "table-light" : rank == 3 ? "table-light" : "";
+
+                <tr class="@rowClass">
+                    <td class="fw-bold" style="font-size:1.1rem;">@rankBadge</td>
+                    <td>@(attempt.User?.FullName ?? "—")</td>
+                    <td>@(attempt.User?.RollNumber ?? "—")</td>
+                    <td>@attempt.Quiz?.Title</td>
+                    <td><strong>@attempt.Score / @attempt.TotalQuestions</strong></td>
+                    <td>
+                        <span class="badge @(percentage >= 70 ? "bg-success" : percentage >= 50 ? "bg-warning text-dark" : "bg-danger")">
+                            @percentage.ToString("0.0")%
+                        </span>
+                    </td>
+                    <td>@(completedIst?.ToString("dd MMM yyyy, hh:mm tt") ?? "—")</td>
+                </tr>
+                rank++;
+            }
+        </tbody>
+    </table>
 }

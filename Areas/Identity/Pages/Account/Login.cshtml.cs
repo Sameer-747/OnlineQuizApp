@@ -13,11 +13,13 @@ namespace OnlineQuizApp.Areas.Identity.Pages.Account
     public class LoginModel : PageModel
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly ApplicationDbContext _context;
 
-        public LoginModel(SignInManager<ApplicationUser> signInManager, ApplicationDbContext context)
+        public LoginModel(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, ApplicationDbContext context)
         {
             _signInManager = signInManager;
+            _userManager = userManager;
             _context = context;
         }
 
@@ -33,7 +35,6 @@ namespace OnlineQuizApp.Areas.Identity.Pages.Account
 
         public class InputModel
         {
-            // "admin" or "student" - which login form was used
             public string LoginType { get; set; } = "student";
 
             // Admin login
@@ -60,14 +61,10 @@ namespace OnlineQuizApp.Areas.Identity.Pages.Account
         public async Task OnGetAsync(string? returnUrl = null)
         {
             if (!string.IsNullOrEmpty(ErrorMessage))
-            {
                 ModelState.AddModelError(string.Empty, ErrorMessage);
-            }
 
             returnUrl ??= Url.Content("~/");
-
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-
             ReturnUrl = returnUrl;
             await LoadSectionsAsync();
         }
@@ -86,6 +83,15 @@ namespace OnlineQuizApp.Areas.Identity.Pages.Account
                     ModelState.AddModelError(string.Empty, "Email is required.");
                     return Page();
                 }
+
+                // Verify this email actually exists as an admin account
+                var adminUser = await _userManager.FindByEmailAsync(Input.Email);
+                if (adminUser == null || !await _userManager.IsInRoleAsync(adminUser, "Admin"))
+                {
+                    ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                    return Page();
+                }
+
                 usernameToSignIn = Input.Email;
             }
             else
@@ -103,19 +109,27 @@ namespace OnlineQuizApp.Areas.Identity.Pages.Account
                     return Page();
                 }
 
-                usernameToSignIn = $"{Input.RollNumber}_{section.Name}".Replace(" ", "");
+                // Strictly verify the roll number exists in the database for this section
+                var studentUser = await _context.Users.FirstOrDefaultAsync(u =>
+                    u.RollNumber == Input.RollNumber.Trim() &&
+                    u.SectionId == Input.SectionId);
+
+                if (studentUser == null)
+                {
+                    ModelState.AddModelError(string.Empty, "No account found with this roll number and section. Please register first.");
+                    return Page();
+                }
+
+                usernameToSignIn = studentUser.UserName!;
             }
 
             var result = await _signInManager.PasswordSignInAsync(usernameToSignIn, Input.Password, Input.RememberMe, lockoutOnFailure: false);
 
             if (result.Succeeded)
-            {
                 return LocalRedirect(returnUrl);
-            }
+
             if (result.IsLockedOut)
-            {
                 return RedirectToPage("./Lockout");
-            }
 
             ModelState.AddModelError(string.Empty, "Invalid login attempt.");
             return Page();

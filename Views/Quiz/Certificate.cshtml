@@ -1,0 +1,130 @@
+@using OnlineQuizApp.Models
+@model QuizAttempt
+@{
+    ViewData["Title"] = "Certificate";
+    Layout = null; // Full page, no navbar
+    double percentage = ViewBag.Percentage;
+    DateTime completedAt = ViewBag.CompletedAt;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Certificate of Achievement</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Georgia', serif;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .certificate {
+            background: white;
+            width: 800px;
+            padding: 60px;
+            border: 3px solid #6e8efb;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            position: relative;
+            text-align: center;
+        }
+        .certificate::before {
+            content: '';
+            position: absolute;
+            inset: 10px;
+            border: 1px solid #a777e3;
+            pointer-events: none;
+        }
+        .logo { font-size: 2rem; margin-bottom: 8px; }
+        .app-name { font-size: 1rem; color: #6e8efb; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 30px; }
+        .title { font-size: 2.5rem; color: #2d2d2d; margin-bottom: 8px; font-weight: bold; }
+        .subtitle { font-size: 1rem; color: #888; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 40px; }
+        .presented { font-size: 1rem; color: #666; margin-bottom: 10px; }
+        .student-name { font-size: 2rem; color: #6e8efb; font-style: italic; margin-bottom: 30px; border-bottom: 2px solid #6e8efb; display: inline-block; padding-bottom: 5px; min-width: 300px; }
+        .description { font-size: 1rem; color: #555; line-height: 1.8; margin-bottom: 30px; }
+        .quiz-name { font-weight: bold; color: #a777e3; }
+        .score-box {
+            display: inline-block;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 40px;
+        }
+        .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; }
+        .date-box { text-align: left; }
+        .date-label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; }
+        .date-value { font-size: 0.9rem; color: #555; border-top: 1px solid #ccc; padding-top: 5px; }
+        .seal { font-size: 3rem; }
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            color: #6e8efb;
+            border: 2px solid #6e8efb;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            text-decoration: none;
+        }
+        @@media print {
+            body { background: white; padding: 0; }
+            .print-btn, .back-btn { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <a href="/Quiz/Result/@Model.Id" class="back-btn">← Back</a>
+    <button class="print-btn" onclick="window.print()">🖨️ Print / Save PDF</button>
+
+    <div class="certificate">
+        <div class="logo">✦</div>
+        <div class="app-name">Online Quiz App</div>
+
+        <div class="title">Certificate</div>
+        <div class="subtitle">of Achievement</div>
+
+        <div class="presented">This certificate is proudly presented to</div>
+        <div class="student-name">@(Model.User?.FullName ?? Model.User?.UserName ?? "Student")</div>
+
+        <div class="description">
+            for successfully completing the quiz on<br />
+            <span class="quiz-name">@Model.Quiz?.Title</span><br />
+            demonstrating excellent knowledge and dedication.
+        </div>
+
+        <div class="score-box">Score: @Model.Score / @Model.TotalQuestions &nbsp;|&nbsp; @percentage%</div>
+
+        <div class="footer">
+            <div class="date-box">
+                <div class="date-label">Date of Completion</div>
+                <div class="date-value">@completedAt.ToString("dd MMMM yyyy")</div>
+            </div>
+            <div class="seal">🏅</div>
+            <div class="date-box" style="text-align:right;">
+                <div class="date-label">Roll Number</div>
+                <div class="date-value">@(Model.User?.RollNumber ?? "-")</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

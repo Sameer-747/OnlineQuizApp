@@ -35,16 +35,13 @@ namespace OnlineQuizApp.Controllers
                 sectionId = currentUser?.SectionId;
 
                 if (sectionId == null)
-                {
-                    TempData["Error"] = "You are not yet assigned to a section. Ask the super admin to assign you one.";
-                }
+                    TempData["Error"] = "You are not yet assigned to a section.";
             }
 
             var quizQuery = _context.Quizzes.AsQueryable();
             if (!isSuper)
-            {
                 quizQuery = quizQuery.Where(q => q.SectionId == sectionId);
-            }
+
             var visibleQuizIds = await quizQuery.Select(q => q.Id).ToListAsync();
 
             var query = _context.QuizAttempts
@@ -56,8 +53,11 @@ namespace OnlineQuizApp.Controllers
             if (quizId.HasValue)
                 query = query.Where(a => a.QuizId == quizId.Value);
 
+            // Sort by score descending (highest score = rank 1), then by completion time ascending (faster = better)
             var attempts = await query
-                .OrderByDescending(a => a.CompletedAt)
+                .OrderByDescending(a => a.TotalQuestions > 0 ? (double)a.Score / a.TotalQuestions : 0)
+                .ThenByDescending(a => a.Score)
+                .ThenBy(a => a.CompletedAt)
                 .ToListAsync();
 
             ViewBag.Quizzes = await quizQuery.ToListAsync();

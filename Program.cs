@@ -24,7 +24,8 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 // MVC + Razor Pages (Identity UI uses Razor Pages)
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
-builder.Services.AddHttpClient(); // for AI question generation
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<OnlineQuizApp.Services.BadgeService>();
 
 var app = builder.Build();
 

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OnlineQuizApp.Data;
 using OnlineQuizApp.Models;
+using OnlineQuizApp.Services;
 using OnlineQuizApp.ViewModels;
 
 namespace OnlineQuizApp.Controllers
@@ -13,11 +14,13 @@ namespace OnlineQuizApp.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly BadgeService _badgeService;
 
-        public QuizController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public QuizController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, BadgeService badgeService)
         {
             _context = context;
             _userManager = userManager;
+            _badgeService = badgeService;
         }
 
         // GET: /Quiz
@@ -137,20 +140,16 @@ namespace OnlineQuizApp.Controllers
                 QuizId = quiz.Id,
                 Title = quiz.Title,
                 DurationMinutes = quiz.DurationMinutes,
-                Questions = quiz.Questions
-                    .OrderBy(_ => Guid.NewGuid())
-                    .Select(q => new QuestionPlayViewModel
+                Questions = quiz.Questions.Select(q => new QuestionPlayViewModel
+                {
+                    QuestionId = q.Id,
+                    Text = q.Text,
+                    Options = q.Options.Select(o => new OptionPlayViewModel
                     {
-                        QuestionId = q.Id,
-                        Text = q.Text,
-                        Options = q.Options
-                            .OrderBy(_ => Guid.NewGuid())
-                            .Select(o => new OptionPlayViewModel
-                            {
-                                OptionId = o.Id,
-                                Text = o.Text
-                            }).ToList()
+                        OptionId = o.Id,
+                        Text = o.Text
                     }).ToList()
+                }).ToList()
             };
 
             return View(viewModel);
@@ -220,6 +219,13 @@ namespace OnlineQuizApp.Controllers
             _context.QuizAttempts.Add(attempt);
             await _context.SaveChangesAsync();
 
+            // Award badges based on performance
+            var attemptWithQuiz = await _context.QuizAttempts
+                .Include(a => a.Quiz)
+                .FirstOrDefaultAsync(a => a.Id == attempt.Id);
+            if (attemptWithQuiz != null)
+                await _badgeService.AwardBadgesAsync(attemptWithQuiz);
+
             return RedirectToAction(nameof(Result), new { attemptId = attempt.Id });
         }
 
@@ -240,13 +246,16 @@ namespace OnlineQuizApp.Controllers
             if (attempt == null) return NotFound();
             if (attempt.UserId != userId && !User.IsInRole("Admin")) return Forbid();
 
+            var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+
             var viewModel = new QuizResultViewModel
             {
                 AttemptId = attempt.Id,
                 QuizTitle = attempt.Quiz?.Title ?? string.Empty,
                 Score = attempt.Score,
                 TotalQuestions = attempt.TotalQuestions,
-                CompletedAt = attempt.CompletedAt ?? DateTime.UtcNow,
+                CompletedAt = TimeZoneInfo.ConvertTimeFromUtc(
+                    DateTime.SpecifyKind(attempt.CompletedAt ?? DateTime.UtcNow, DateTimeKind.Utc), ist),
                 QuestionResults = attempt.Answers.Select(ans => new QuestionResultViewModel
                 {
                     QuestionText = ans.Question?.Text ?? string.Empty,
@@ -255,6 +264,18 @@ namespace OnlineQuizApp.Controllers
                     IsCorrect = ans.SelectedOption != null && ans.SelectedOption.IsCorrect
                 }).ToList()
             };
+
+            // Load badges earned on this attempt
+            var newBadges = await _context.StudentBadges
+                .Where(b => b.UserId == userId && b.QuizAttemptId == attemptId)
+                .ToListAsync();
+            ViewBag.NewBadges = newBadges;
+
+            // Pass percentage for certificate eligibility
+            double percentage = attempt.TotalQuestions > 0
+                ? (double)attempt.Score / attempt.TotalQuestions * 100 : 0;
+            ViewBag.Percentage = percentage;
+            ViewBag.AttemptId = attemptId;
 
             return View(viewModel);
         }
@@ -271,6 +292,63 @@ namespace OnlineQuizApp.Controllers
                 .ToListAsync();
 
             return View(attempts);
+        }
+
+        // GET: /Quiz/MyBadges
+        public async Task<IActionResult> MyBadges()
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var badges = await _context.StudentBadges
+                .Where(b => b.UserId == userId)
+                .OrderByDescending(b => b.EarnedAt)
+                .ToListAsync();
+
+            var currentStreak = await _badgeService.GetCurrentStreakAsync(userId!);
+            var longestStreak = await _badgeService.GetLongestStreakAsync(userId!);
+            var totalAttempts = await _context.QuizAttempts.CountAsync(a => a.UserId == userId);
+            var attempts = await _context.QuizAttempts
+                .Where(a => a.UserId == userId && a.TotalQuestions > 0)
+                .Select(a => new { a.Score, a.TotalQuestions })
+                .ToListAsync();
+
+            var avgScore = attempts.Any()
+                ? Math.Round(attempts.Average(a => (double)a.Score / a.TotalQuestions * 100), 1)
+                : 0.0;
+
+            ViewBag.CurrentStreak = currentStreak;
+            ViewBag.LongestStreak = longestStreak;
+            ViewBag.TotalAttempts = totalAttempts;
+            ViewBag.AvgScore = Math.Round(avgScore, 1);
+
+            return View(badges);
+        }
+
+        // GET: /Quiz/Certificate/5
+        public async Task<IActionResult> Certificate(int attemptId)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var attempt = await _context.QuizAttempts
+                .Include(a => a.Quiz)
+                .Include(a => a.User)
+                .FirstOrDefaultAsync(a => a.Id == attemptId);
+
+            if (attempt == null) return NotFound();
+            if (attempt.UserId != userId) return Forbid();
+
+            double percentage = attempt.TotalQuestions > 0
+                ? (double)attempt.Score / attempt.TotalQuestions * 100 : 0;
+
+            if (percentage < 70)
+                return RedirectToAction(nameof(Result), new { attemptId });
+
+            var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+            ViewBag.CompletedAt = TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.SpecifyKind(attempt.CompletedAt ?? DateTime.UtcNow, DateTimeKind.Utc), ist);
+            ViewBag.Percentage = Math.Round(percentage, 1);
+
+            return View(attempt);
         }
     }
 }
