@@ -70,7 +70,8 @@ else
                     <td><span class="badge @badgeClass">@te.Status</span></td>
                     <td>
                         <a asp-action="Results" asp-route-id="@te.Id" class="btn btn-sm btn-outline-primary">Results</a>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-@te.Id">
+                        <button type="button" class="btn btn-sm btn-outline-danger delete-event-btn"
+                                data-id="@te.Id" data-title="@te.Title" data-expired="@(te.Status == "Expired" ? "true" : "false")">
                             Delete
                         </button>
                     </td>
@@ -79,36 +80,49 @@ else
         </tbody>
     </table>
 
-    @foreach (var te in Model)
-    {
-        <div class="modal fade" id="deleteModal-@te.Id" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="ti ti-alert-triangle me-2 text-danger"></i>Delete Test Event</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="mb-0">
-                            Delete <strong>@te.Title</strong> and all its language quizzes?
-                            @if (te.Status == "Expired")
-                            {
-                                <text> This also permanently deletes any student attempts already recorded for it.</text>
-                            }
-                            This cannot be undone.
-                        </p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <form asp-action="Delete" asp-route-id="@te.Id" method="post">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-danger">
-                                <i class="ti ti-trash me-1"></i>Delete
-                            </button>
-                        </form>
-                    </div>
+    <div class="modal fade" id="deleteEventModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-alert-triangle me-2 text-danger"></i>Delete Test Event</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="deleteEventMessage" class="mb-0"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteEventForm" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger">
+                            <i class="ti ti-trash me-1"></i>Delete
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
+
+    @section Scripts {
+        <script>
+            document.querySelectorAll('.delete-event-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var id = this.dataset.id;
+                    var title = this.dataset.title;
+                    var isExpired = this.dataset.expired === 'true';
+
+                    document.getElementById('deleteEventForm').action = '/Admin/TestEvents/Delete/' + id;
+
+                    var msg = 'Delete "' + title + '" and all its language quizzes?';
+                    if (isExpired) {
+                        msg += ' This also permanently deletes any student attempts already recorded for it.';
+                    }
+                    msg += ' This cannot be undone.';
+                    document.getElementById('deleteEventMessage').textContent = msg;
+
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteEventModal')).show();
+                });
+            });
+        </script>
     }
 }
