@@ -166,8 +166,16 @@ namespace OnlineQuizApp.Controllers
             {
                 if (!isSuper && quiz.SectionId != sectionId) return Forbid();
 
-                _context.Quizzes.Remove(quiz);
-                await _context.SaveChangesAsync();
+                try
+                {
+                    _context.Quizzes.Remove(quiz);
+                    await _context.SaveChangesAsync();
+                    TempData["Success"] = "Quiz deleted.";
+                }
+                catch (DbUpdateException)
+                {
+                    TempData["Error"] = "Can't delete this quiz: one or more students have already attempted it.";
+                }
             }
             return RedirectToAction(nameof(Index));
         }
@@ -193,10 +201,31 @@ namespace OnlineQuizApp.Controllers
 
             var quizzesToDelete = await query.ToListAsync();
 
-            _context.Quizzes.RemoveRange(quizzesToDelete);
-            await _context.SaveChangesAsync();
+            int deleted = 0;
+            var blocked = new List<string>();
 
-            TempData["Success"] = $"{quizzesToDelete.Count} quiz(zes) deleted successfully.";
+            foreach (var quiz in quizzesToDelete)
+            {
+                try
+                {
+                    _context.Quizzes.Remove(quiz);
+                    await _context.SaveChangesAsync();
+                    deleted++;
+                }
+                catch (DbUpdateException)
+                {
+                    // Roll back just this failed delete so the next one can still be attempted.
+                    _context.Entry(quiz).State = EntityState.Unchanged;
+                    blocked.Add(quiz.Title);
+                }
+            }
+
+            if (deleted > 0)
+                TempData["Success"] = $"{deleted} quiz(zes) deleted successfully.";
+
+            if (blocked.Count > 0)
+                TempData["Error"] = $"Couldn't delete (students already attempted): {string.Join(", ", blocked)}";
+
             return RedirectToAction(nameof(Index));
         }
 
