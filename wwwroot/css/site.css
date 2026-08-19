@@ -99,12 +99,17 @@ body::after {
 
 .glass-navbar .nav-link {
   font-weight: 500;
+  font-size: 0.92rem;
   color: #3a3a55 !important;
   position: relative;
   transition: color 0.25s ease;
-  padding: 0.5rem 0.9rem !important;
+  padding: 0.5rem 0.65rem !important;
   border-radius: 999px;
   white-space: nowrap;
+}
+
+.glass-navbar .nav-link i {
+  margin-right: 0.2rem !important;
 }
 
 .glass-navbar .nav-link:hover {
