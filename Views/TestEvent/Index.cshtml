@@ -70,8 +70,13 @@ else
                     <td><span class="badge @badgeClass">@te.Status</span></td>
                     <td>
                         <a asp-action="Results" asp-route-id="@te.Id" class="btn btn-sm btn-outline-primary">Results</a>
+                        @{
+                            string confirmMsg = te.Status == "Expired"
+                                ? "Delete this expired test event and all its language quizzes? This also permanently deletes any student attempts already recorded for it. This cannot be undone."
+                                : "Delete this test event and all its language quizzes? This cannot be undone.";
+                        }
                         <form asp-action="Delete" asp-route-id="@te.Id" method="post" class="d-inline"
-                              onsubmit="return confirm('Delete this test event and all its language quizzes? This cannot be undone.');">
+                              onsubmit="return confirm('@confirmMsg');">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                         </form>

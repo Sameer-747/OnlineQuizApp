@@ -338,19 +338,46 @@ namespace OnlineQuizApp.Controllers
         {
             var (isSuper, sectionId) = await GetScopeAsync();
 
-            var testEvent = await _context.TestEvents.FindAsync(id);
+            var testEvent = await _context.TestEvents
+                .Include(te => te.Quizzes)
+                .FirstOrDefaultAsync(te => te.Id == id);
+
             if (testEvent == null) return NotFound();
             if (!isSuper && testEvent.SectionId != sectionId) return Forbid();
 
+            var quizIds = testEvent.Quizzes.Select(q => q.Id).ToList();
+            var hasAttempts = quizIds.Count > 0 &&
+                await _context.QuizAttempts.AnyAsync(a => quizIds.Contains(a.QuizId));
+
+            // Attempts on a still-active/upcoming event are left alone for safety - only an
+            // expired event's attempt history can be force-deleted along with it.
+            if (hasAttempts && !testEvent.HasEnded)
+            {
+                TempData["Error"] = "Can't delete this test event: some students have already attempted it, and it hasn't expired yet.";
+                return RedirectToAction(nameof(Index));
+            }
+
             try
             {
+                if (hasAttempts)
+                {
+                    var attempts = await _context.QuizAttempts
+                        .Where(a => quizIds.Contains(a.QuizId))
+                        .ToListAsync();
+                    _context.QuizAttempts.RemoveRange(attempts);
+                    await _context.SaveChangesAsync();
+                }
+
                 _context.TestEvents.Remove(testEvent);
                 await _context.SaveChangesAsync();
-                TempData["Success"] = "Test event deleted.";
+
+                TempData["Success"] = hasAttempts
+                    ? "Expired test event deleted, along with its recorded attempts."
+                    : "Test event deleted.";
             }
             catch (DbUpdateException)
             {
-                TempData["Error"] = "Can't delete this test event: some students have already attempted it.";
+                TempData["Error"] = "Couldn't delete this test event. Please try again.";
             }
 
             return RedirectToAction(nameof(Index));
