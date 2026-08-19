@@ -87,6 +87,11 @@ namespace OnlineQuizApp.Controllers
             {
                 ViewBag.Sections = await _context.Sections.OrderBy(s => s.Name).ToListAsync();
             }
+            else
+            {
+                var section = await _context.Sections.FindAsync(sectionId!.Value);
+                ViewBag.OwnSectionName = section?.Name ?? "—";
+            }
 
             return View();
         }
