@@ -176,9 +176,15 @@ namespace OnlineQuizApp.Controllers
 
             var createdQuizzes = new List<Quiz>();
             var failedLanguages = new List<string>();
+            bool first = true;
 
             foreach (var language in languages)
             {
+                // Groq's free-tier rate limit trips almost immediately if requests fire
+                // back-to-back, so space them out a little.
+                if (!first) await Task.Delay(2000);
+                first = false;
+
                 var generated = await GenerateQuestionsForLanguageAsync(language, questionCount, difficulty);
                 if (generated == null || generated.Count == 0)
                 {
@@ -414,39 +420,60 @@ Rules:
                 temperature = 0.7
             });
 
-            HttpResponseMessage response;
-            try
+            const int maxAttempts = 4;
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                response = await client.PostAsync(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    new StringContent(body, Encoding.UTF8, "application/json"));
-            }
-            catch
-            {
-                return null;
+                HttpResponseMessage response;
+                try
+                {
+                    response = await client.PostAsync(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        new StringContent(body, Encoding.UTF8, "application/json"));
+                }
+                catch
+                {
+                    return null;
+                }
+
+                // Rate-limited or a transient server hiccup: back off and try again rather
+                // than giving up on the whole language.
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
+                    (int)response.StatusCode >= 500)
+                {
+                    if (attempt == maxAttempts) return null;
+
+                    TimeSpan wait = TimeSpan.FromSeconds(Math.Pow(2, attempt) * 2); // 4s, 8s, 16s
+                    if (response.Headers.RetryAfter?.Delta is TimeSpan retryAfter)
+                        wait = retryAfter;
+
+                    await Task.Delay(wait);
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode) return null;
+
+                try
+                {
+                    var responseText = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(responseText);
+                    var text = doc.RootElement
+                        .GetProperty("choices")[0]
+                        .GetProperty("message")
+                        .GetProperty("content")
+                        .GetString() ?? "";
+
+                    var cleaned = text.Replace("```json", "").Replace("```", "").Trim();
+
+                    return JsonSerializer.Deserialize<List<GeneratedAiQuestion>>(
+                        cleaned, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                catch
+                {
+                    return null;
+                }
             }
 
-            if (!response.IsSuccessStatusCode) return null;
-
-            try
-            {
-                var responseText = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(responseText);
-                var text = doc.RootElement
-                    .GetProperty("choices")[0]
-                    .GetProperty("message")
-                    .GetProperty("content")
-                    .GetString() ?? "";
-
-                var cleaned = text.Replace("```json", "").Replace("```", "").Trim();
-
-                return JsonSerializer.Deserialize<List<GeneratedAiQuestion>>(
-                    cleaned, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            }
-            catch
-            {
-                return null;
-            }
+            return null;
         }
     }
 
