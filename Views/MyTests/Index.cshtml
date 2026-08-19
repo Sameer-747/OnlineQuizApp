@@ -1,0 +1,78 @@
+@model List<MyTestEventRow>
+@{
+    ViewData["Title"] = "My Tests";
+}
+
+<h2><i class="ti ti-code me-2"></i>My Tests</h2>
+
+@if (TempData["Info"] != null)
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="ti ti-info-circle me-2"></i>@TempData["Info"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">You haven't been assigned any language tests yet.</div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var row in Model)
+        {
+            string badgeClass = row.Status switch
+            {
+                "Active" => "bg-success",
+                "Upcoming" => "bg-warning text-dark",
+                _ => "bg-secondary"
+            };
+
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="mb-0">@row.EventTitle</h5>
+                            <span class="badge @badgeClass">@row.Status</span>
+                        </div>
+                        <p class="mb-1"><i class="ti ti-code me-1"></i>Your language: <strong>@row.Language</strong></p>
+                        <p class="text-muted small mb-3">
+                            @row.StartTimeIst.ToString("dd MMM, hh:mm tt") &rarr; @row.EndTimeIst.ToString("dd MMM, hh:mm tt") IST
+                        </p>
+
+                        <div class="mt-auto">
+                            @if (row.Attempted)
+                            {
+                                <a asp-controller="Quiz" asp-action="Result" asp-route-attemptId="@row.AttemptId" class="btn btn-outline-success w-100">
+                                    <i class="ti ti-check me-1"></i>View Result
+                                </a>
+                            }
+                            else if (row.Status == "Active")
+                            {
+                                <a asp-controller="Quiz" asp-action="Take" asp-route-id="@row.QuizId" class="btn btn-primary w-100">
+                                    <i class="ti ti-player-play me-1"></i>Start Test
+                                </a>
+                            }
+                            else if (row.Status == "Upcoming")
+                            {
+                                <button class="btn btn-outline-secondary w-100" disabled>Starts @row.StartTimeIst.ToString("dd MMM, hh:mm tt")</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-danger w-100" disabled>Expired</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,83 @@
+@model List<TestEvent>
+@{
+    ViewData["Title"] = "Test Events";
+    var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="ti ti-code me-2"></i>Multi-Language Test Events</h2>
+    <a asp-action="Create" class="btn btn-primary">+ New Test Event</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="ti ti-check me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<p class="text-muted">
+    Create one event covering several programming languages — AI generates a quiz per language,
+    and each student in the section is randomly assigned exactly one to attempt.
+</p>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No test events yet. Click "New Test Event" to create one.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Section</th>
+                <th>Languages</th>
+                <th>Students Assigned</th>
+                <th>Window (IST)</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var te in Model)
+            {
+                var startIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(te.StartTime, DateTimeKind.Utc), ist);
+                var endIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(te.EndTime, DateTimeKind.Utc), ist);
+                string badgeClass = te.Status switch
+                {
+                    "Active" => "bg-success",
+                    "Upcoming" => "bg-warning text-dark",
+                    _ => "bg-secondary"
+                };
+
+                <tr>
+                    <td>@te.Title</td>
+                    <td>@te.Section?.Name</td>
+                    <td>@te.Quizzes.Count</td>
+                    <td>@te.Assignments.Count</td>
+                    <td>
+                        @startIst.ToString("dd MMM, hh:mm tt") &rarr; @endIst.ToString("dd MMM, hh:mm tt")
+                    </td>
+                    <td><span class="badge @badgeClass">@te.Status</span></td>
+                    <td>
+                        <a asp-action="Results" asp-route-id="@te.Id" class="btn btn-sm btn-outline-primary">Results</a>
+                        <form asp-action="Delete" asp-route-id="@te.Id" method="post" class="d-inline"
+                              onsubmit="return confirm('Delete this test event and all its language quizzes? This cannot be undone.');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

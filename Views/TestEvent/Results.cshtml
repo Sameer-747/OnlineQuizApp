@@ -1,0 +1,116 @@
+@model List<TestEventResultRow>
+@{
+    var testEvent = ViewBag.TestEvent as TestEvent;
+    ViewData["Title"] = testEvent?.Title ?? "Test Event Results";
+    var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+}
+
+<div class="d-flex align-items-center gap-3 mb-3">
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="ti ti-arrow-left me-1"></i>Back
+    </a>
+    <h2 class="mb-0"><i class="ti ti-chart-bar me-2"></i>@testEvent?.Title</h2>
+</div>
+
+@if (testEvent != null)
+{
+    var startIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(testEvent.StartTime, DateTimeKind.Utc), ist);
+    var endIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(testEvent.EndTime, DateTimeKind.Utc), ist);
+    string badgeClass = testEvent.Status switch
+    {
+        "Active" => "bg-success",
+        "Upcoming" => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+    <p class="text-muted">
+        @startIst.ToString("dd MMM yyyy, hh:mm tt") &rarr; @endIst.ToString("dd MMM yyyy, hh:mm tt") IST
+        &nbsp;<span class="badge @badgeClass">@testEvent.Status</span>
+    </p>
+}
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No students have been assigned to this test event yet.</div>
+}
+else
+{
+    @foreach (var langGroup in Model.GroupBy(r => r.Language))
+    {
+        <h5 class="mt-4"><i class="ti ti-code me-2"></i>@langGroup.Key
+            <span class="text-muted fs-6">(@langGroup.Count(r => r.Attempted) / @langGroup.Count() completed)</span>
+        </h5>
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Student</th>
+                    <th>Roll No</th>
+                    <th>Score</th>
+                    <th>Percentage</th>
+                    <th>Status</th>
+                    <th>Completed At</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in langGroup.OrderBy(r => r.Rank ?? int.MaxValue))
+                {
+                    var completedIst = row.CompletedAt.HasValue
+                        ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(row.CompletedAt.Value, DateTimeKind.Utc), ist)
+                        : (DateTime?)null;
+                    string rankBadge = row.Rank switch
+                    {
+                        1 => "🥇",
+                        2 => "🥈",
+                        3 => "🥉",
+                        null => "—",
+                        _ => $"#{row.Rank}"
+                    };
+                    string rowClass = row.Rank == 1 ? "table-warning" : (row.Rank == 2 || row.Rank == 3) ? "table-light" : "";
+
+                    <tr class="@rowClass">
+                        <td class="fw-bold" style="font-size:1.1rem;">@rankBadge</td>
+                        <td>@row.StudentName</td>
+                        <td>@(row.RollNumber ?? "—")</td>
+                        <td>
+                            @if (row.Attempted)
+                            {
+                                <strong>@row.Score / @row.TotalQuestions</strong>
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (row.Attempted)
+                            {
+                                <span class="badge @(row.Percentage >= 70 ? "bg-success" : row.Percentage >= 50 ? "bg-warning text-dark" : "bg-danger")">
+                                    @row.Percentage.ToString("0.0")%
+                                </span>
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (row.Attempted)
+                            {
+                                <span class="badge bg-success">Completed</span>
+                            }
+                            else if (testEvent != null && testEvent.HasEnded)
+                            {
+                                <span class="badge bg-danger">Missed</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Not Attempted</span>
+                            }
+                        </td>
+                        <td>@(completedIst?.ToString("dd MMM yyyy, hh:mm tt") ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}

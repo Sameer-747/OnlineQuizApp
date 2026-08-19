@@ -31,6 +31,9 @@ namespace OnlineQuizApp.Controllers
                 .Include(q => q.Category)
                 .Include(q => q.Section)
                 .Include(q => q.CreatedByUser)
+                // Test-event language quizzes have their own dedicated "My Tests" flow with
+                // scheduling/assignment rules, so keep them out of the regular quiz browsing list.
+                .Where(q => q.TestEventId == null)
                 .AsQueryable();
 
             if (categoryId.HasValue)
@@ -79,6 +82,49 @@ namespace OnlineQuizApp.Controllers
             return View(await query.ToListAsync());
         }
 
+        // If quizId belongs to a multi-language TestEvent, verify the caller was actually assigned
+        // that exact language and that the event's time window is currently open. Returns an
+        // IActionResult to short-circuit the caller if access should be blocked, or null to proceed.
+        // Super admins bypass this entirely (for preview/QA purposes).
+        private async Task<IActionResult?> CheckTestEventAccessAsync(int quizId, string? userId, bool isSuperAdmin)
+        {
+            if (isSuperAdmin) return null;
+
+            var testEventId = await _context.Quizzes
+                .Where(q => q.Id == quizId)
+                .Select(q => q.TestEventId)
+                .FirstOrDefaultAsync();
+
+            if (testEventId == null) return null;
+
+            var testEvent = await _context.TestEvents.FindAsync(testEventId.Value);
+            if (testEvent == null) return null;
+
+            var hasAssignment = await _context.TestEventAssignments
+                .AnyAsync(a => a.TestEventId == testEventId.Value && a.UserId == userId && a.QuizId == quizId);
+
+            if (!hasAssignment)
+            {
+                TempData["Error"] = "You were not assigned this test.";
+                return RedirectToAction("Index", "MyTests");
+            }
+
+            var now = DateTime.UtcNow;
+            if (now < testEvent.StartTime)
+            {
+                TempData["Info"] = "This test hasn't started yet.";
+                return RedirectToAction("Index", "MyTests");
+            }
+
+            if (now > testEvent.EndTime)
+            {
+                TempData["Error"] = "This test has expired.";
+                return RedirectToAction("Index", "MyTests");
+            }
+
+            return null;
+        }
+
         // GET: /Quiz/Details/5
         [AllowAnonymous]
         public async Task<IActionResult> Details(int id)
@@ -112,6 +158,10 @@ namespace OnlineQuizApp.Controllers
                     return Forbid();
                 }
             }
+
+            // If this is a multi-language test-event quiz, enforce the assignment + time window.
+            var testEventGuard = await CheckTestEventAccessAsync(id, userId, isSuperAdmin);
+            if (testEventGuard != null) return testEventGuard;
 
             // Block retakes for non-admins: one attempt per quiz, ever.
             if (!User.IsInRole("Admin"))
@@ -162,6 +212,10 @@ namespace OnlineQuizApp.Controllers
         {
             var userId = _userManager.GetUserId(User);
             if (userId == null) return Challenge();
+
+            bool isSuperAdminSubmit = User.Identity?.Name?.ToLower() == "admin@quizapp.com";
+            var testEventGuard = await CheckTestEventAccessAsync(submission.QuizId, userId, isSuperAdminSubmit);
+            if (testEventGuard != null) return testEventGuard;
 
             var quiz = await _context.Quizzes
                 .Include(q => q.Questions)

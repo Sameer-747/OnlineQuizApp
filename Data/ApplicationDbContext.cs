@@ -19,6 +19,8 @@ namespace OnlineQuizApp.Data
         public DbSet<UserAnswer> UserAnswers { get; set; } = default!;
         public DbSet<Section> Sections { get; set; } = default!;
         public DbSet<StudentBadge> StudentBadges { get; set; } = default!;
+        public DbSet<TestEvent> TestEvents { get; set; } = default!;
+        public DbSet<TestEventAssignment> TestEventAssignments { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -127,6 +129,56 @@ namespace OnlineQuizApp.Data
                 .WithMany()
                 .HasForeignKey(b => b.QuizAttemptId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // TestEvent relationships
+            builder.Entity<TestEvent>()
+                .HasOne(te => te.Section)
+                .WithMany()
+                .HasForeignKey(te => te.SectionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            builder.Entity<TestEvent>()
+                .HasOne(te => te.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(te => te.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            // Deleting a TestEvent removes the per-language quizzes generated for it.
+            builder.Entity<Quiz>()
+                .HasOne(q => q.TestEvent)
+                .WithMany(te => te.Quizzes)
+                .HasForeignKey(q => q.TestEventId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);
+
+            // TestEventAssignment relationships - all cascade from TestEvent so there's a single,
+            // unambiguous delete path (avoids Restrict-vs-Cascade ordering conflicts on delete).
+            builder.Entity<TestEventAssignment>()
+                .HasOne(a => a.TestEvent)
+                .WithMany(te => te.Assignments)
+                .HasForeignKey(a => a.TestEventId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            builder.Entity<TestEventAssignment>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            builder.Entity<TestEventAssignment>()
+                .HasOne(a => a.Quiz)
+                .WithMany()
+                .HasForeignKey(a => a.QuizId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            builder.Entity<TestEventAssignment>()
+                .HasIndex(a => new { a.TestEventId, a.UserId })
+                .IsUnique();
         }
     }
 }

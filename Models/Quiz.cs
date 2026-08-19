@@ -28,6 +28,11 @@ namespace OnlineQuizApp.Models
         public string? CreatedByUserId { get; set; }
         public ApplicationUser? CreatedByUser { get; set; }
 
+        // Set when this quiz is one of the per-language quizzes generated for a multi-language TestEvent.
+        // Null for regular, independently-created quizzes.
+        public int? TestEventId { get; set; }
+        public TestEvent? TestEvent { get; set; }
+
         public ICollection<Question> Questions { get; set; } = new List<Question>();
     }
 }
