@@ -78,6 +78,7 @@ namespace OnlineQuizApp.Controllers
             }
 
             ViewBag.AttemptedQuizMap = attemptedQuizMap;
+            ViewBag.IsAdminViewer = User.IsInRole("Admin");
 
             return View(await query.ToListAsync());
         }
@@ -136,12 +137,21 @@ namespace OnlineQuizApp.Controllers
 
             if (quiz == null) return NotFound();
 
+            ViewBag.IsAdminViewer = User.IsInRole("Admin");
+
             return View(quiz);
         }
 
         // GET: /Quiz/Take/5
         public async Task<IActionResult> Take(int id)
         {
+            // Admins manage quizzes, they don't attempt them.
+            if (User.IsInRole("Admin"))
+            {
+                TempData["Info"] = "Admin accounts can't attempt quizzes.";
+                return RedirectToAction(nameof(Index));
+            }
+
             var userId = _userManager.GetUserId(User);
             bool isSuperAdmin = User.Identity?.Name?.ToLower() == "admin@quizapp.com";
 
@@ -210,6 +220,12 @@ namespace OnlineQuizApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Submit(QuizSubmissionViewModel submission)
         {
+            if (User.IsInRole("Admin"))
+            {
+                TempData["Info"] = "Admin accounts can't attempt quizzes.";
+                return RedirectToAction(nameof(Index));
+            }
+
             var userId = _userManager.GetUserId(User);
             if (userId == null) return Challenge();
 

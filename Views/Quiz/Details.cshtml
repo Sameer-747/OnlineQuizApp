@@ -1,6 +1,7 @@
 @model Quiz
 @{
     ViewData["Title"] = Model.Title;
+    bool isAdminViewer = ViewBag.IsAdminViewer ?? false;
 }
 
 <h2>@Model.Title</h2>
@@ -9,5 +10,12 @@
 <p><strong>Duration:</strong> @Model.DurationMinutes minutes</p>
 <p><strong>Number of Questions:</strong> @Model.Questions.Count</p>
 
-<a asp-action="Take" asp-route-id="@Model.Id" class="btn btn-primary">Start Quiz</a>
+@if (isAdminViewer)
+{
+    <p class="text-muted mb-3"><i class="ti ti-shield-check me-1"></i>Admin accounts can't attempt quizzes.</p>
+}
+else
+{
+    <a asp-action="Take" asp-route-id="@Model.Id" class="btn btn-primary">Start Quiz</a>
+}
 <a asp-action="Index" class="btn btn-outline-secondary">Back to Quizzes</a>
