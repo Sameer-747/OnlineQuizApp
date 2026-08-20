@@ -293,6 +293,14 @@ namespace OnlineQuizApp.Controllers
                 .Where(a => quizIds.Contains(a.QuizId) && userIds.Contains(a.UserId))
                 .ToListAsync();
 
+            // Latest camera-violation snapshot per (student, quiz), if any - shown as evidence
+            // next to auto-submitted attempts.
+            var latestSnapshots = (await _context.ExamSnapshots
+                    .Where(s => quizIds.Contains(s.QuizId) && userIds.Contains(s.UserId))
+                    .ToListAsync())
+                .GroupBy(s => (s.UserId, s.QuizId))
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CapturedAt).First());
+
             var rows = new List<TestEventResultRow>();
             foreach (var assignment in assignments)
             {
@@ -300,6 +308,8 @@ namespace OnlineQuizApp.Controllers
                     .Where(a => a.QuizId == assignment.QuizId && a.UserId == assignment.UserId)
                     .OrderByDescending(a => a.CompletedAt)
                     .FirstOrDefault();
+
+                latestSnapshots.TryGetValue((assignment.UserId, assignment.QuizId), out var snapshot);
 
                 rows.Add(new TestEventResultRow
                 {
@@ -314,7 +324,9 @@ namespace OnlineQuizApp.Controllers
                         ? (attempt.Score * 100.0 / attempt.TotalQuestions) : 0,
                     CompletedAt = attempt?.CompletedAt,
                     AutoSubmitted = attempt?.AutoSubmitted ?? false,
-                    TabSwitchCount = attempt?.TabSwitchCount ?? 0
+                    TabSwitchCount = attempt?.TabSwitchCount ?? 0,
+                    ViolationReason = attempt?.ViolationReason,
+                    LatestSnapshotId = snapshot?.Id
                 });
             }
 
@@ -334,6 +346,44 @@ namespace OnlineQuizApp.Controllers
 
             ViewBag.TestEvent = testEvent;
             return View(rows.OrderBy(r => r.Language).ThenBy(r => r.Rank ?? int.MaxValue).ToList());
+        }
+
+        // GET: /Admin/TestEvents/Snapshot/5 - serves a camera-violation evidence image.
+        // Scoped the same way as Results: section admins can only view snapshots tied to a
+        // quiz that belongs to one of their own section's test events; super admin sees all.
+        [HttpGet("Snapshot/{id:int}")]
+        public async Task<IActionResult> Snapshot(int id)
+        {
+            var (isSuper, sectionId) = await GetScopeAsync();
+
+            var snapshot = await _context.ExamSnapshots.FindAsync(id);
+            if (snapshot == null) return NotFound();
+
+            if (!isSuper)
+            {
+                var quizSectionId = await _context.Quizzes
+                    .Where(q => q.Id == snapshot.QuizId)
+                    .Select(q => q.SectionId)
+                    .FirstOrDefaultAsync();
+                if (quizSectionId != sectionId) return Forbid();
+            }
+
+            var data = snapshot.ImageData;
+            var commaIndex = data.IndexOf(',');
+            if (data.StartsWith("data:") && commaIndex > -1)
+                data = data[(commaIndex + 1)..];
+
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(data);
+            }
+            catch (FormatException)
+            {
+                return NotFound();
+            }
+
+            return File(bytes, "image/jpeg");
         }
 
         // POST: /Admin/TestEvents/Delete/5

@@ -265,7 +265,8 @@ namespace OnlineQuizApp.Controllers
                 // Only meaningful for proctored Test Event quizzes; stays 0/false otherwise
                 // since regular quizzes never post these fields.
                 TabSwitchCount = submission.TabSwitchCount,
-                AutoSubmitted = submission.AutoSubmitted
+                AutoSubmitted = submission.AutoSubmitted,
+                ViolationReason = submission.ViolationReason
             };
 
             int score = 0;
@@ -304,6 +305,41 @@ namespace OnlineQuizApp.Controllers
             return RedirectToAction(nameof(Result), new { attemptId = attempt.Id });
         }
 
+        // POST: /Quiz/ReportCameraViolation - fired by the proctoring JS on Test Event exams
+        // when a sustained camera issue (no face / multiple faces / phone in frame) is
+        // detected. Best-effort: saves evidence for admin review but never blocks the exam.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReportCameraViolation([FromBody] CameraViolationRequest request)
+        {
+            if (User.IsInRole("Admin")) return Ok();
+
+            var userId = _userManager.GetUserId(User);
+            if (userId == null) return Unauthorized();
+
+            bool isSuperAdminReport = User.Identity?.Name?.ToLower() == "admin@quizapp.com";
+            var guard = await CheckTestEventAccessAsync(request.QuizId, userId, isSuperAdminReport);
+            if (guard != null) return Ok(); // don't leak access details here; just skip silently
+
+            if (string.IsNullOrWhiteSpace(request.Reason) || string.IsNullOrWhiteSpace(request.ImageData))
+                return BadRequest();
+
+            // Guard against oversized payloads (the client sends a small downscaled JPEG).
+            if (request.ImageData.Length > 3_000_000)
+                return BadRequest();
+
+            _context.ExamSnapshots.Add(new ExamSnapshot
+            {
+                UserId = userId,
+                QuizId = request.QuizId,
+                Reason = request.Reason.Length > 200 ? request.Reason[..200] : request.Reason,
+                ImageData = request.ImageData
+            });
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
+
         // GET: /Quiz/Result/5
         public async Task<IActionResult> Result(int attemptId)
         {
@@ -333,6 +369,7 @@ namespace OnlineQuizApp.Controllers
                     DateTime.SpecifyKind(attempt.CompletedAt ?? DateTime.UtcNow, DateTimeKind.Utc), ist),
                 AutoSubmitted = attempt.AutoSubmitted,
                 TabSwitchCount = attempt.TabSwitchCount,
+                ViolationReason = attempt.ViolationReason,
                 QuestionResults = attempt.Answers.Select(ans => new QuestionResultViewModel
                 {
                     QuestionText = ans.Question?.Text ?? string.Empty,

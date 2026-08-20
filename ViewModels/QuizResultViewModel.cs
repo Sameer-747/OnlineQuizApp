@@ -9,6 +9,7 @@ namespace OnlineQuizApp.ViewModels
         public DateTime CompletedAt { get; set; }
         public bool AutoSubmitted { get; set; }
         public int TabSwitchCount { get; set; }
+        public string? ViolationReason { get; set; }
         public List<QuestionResultViewModel> QuestionResults { get; set; } = new();
     }
 
@@ -28,6 +29,7 @@ namespace OnlineQuizApp.ViewModels
         // Populated client-side for proctored Test Event exams only.
         public int TabSwitchCount { get; set; }
         public bool AutoSubmitted { get; set; }
+        public string? ViolationReason { get; set; }
     }
 
     public class QuestionAnswerSubmission

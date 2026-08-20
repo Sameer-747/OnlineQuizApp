@@ -15,8 +15,16 @@
 {
     <div class="alert alert-warning">
         <i class="ti ti-alert-triangle me-1"></i>
-        This attempt was auto-submitted because you left the exam (switched tabs, apps, or exited full-screen)
-        @Model.TabSwitchCount time@(Model.TabSwitchCount == 1 ? "" : "s") &mdash; past the 2-warning limit. Any answers you hadn't selected yet were left blank.
+        @if (!string.IsNullOrEmpty(Model.ViolationReason))
+        {
+            <text>This attempt was auto-submitted: @Model.ViolationReason</text>
+        }
+        else
+        {
+            <text>This attempt was auto-submitted because you left the exam (switched tabs, apps, or exited full-screen)
+            @Model.TabSwitchCount time@(Model.TabSwitchCount == 1 ? "" : "s") &mdash; past the 2-warning limit.</text>
+        }
+        Any answers you hadn't selected yet were left blank.
     </div>
 }
 

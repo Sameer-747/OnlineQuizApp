@@ -15,5 +15,7 @@ namespace OnlineQuizApp.ViewModels
         public DateTime? CompletedAt { get; set; }
         public bool AutoSubmitted { get; set; }
         public int TabSwitchCount { get; set; }
+        public string? ViolationReason { get; set; }
+        public int? LatestSnapshotId { get; set; }
     }
 }

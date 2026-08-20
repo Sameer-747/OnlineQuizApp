@@ -19,15 +19,30 @@
         </div>
     </div>
 
+    <video id="examCamPreviewPinned" autoplay muted playsinline class="d-none"
+           style="position: fixed; bottom: 16px; right: 16px; width: 160px; height: 120px; border-radius: 8px; border: 2px solid #a777e3; z-index: 1040; object-fit: cover; background: #000;"></video>
+    <canvas id="examCamCanvas" width="320" height="240" class="d-none"></canvas>
+
     <div id="examInstructions" class="card mb-4" style="border: 2px solid #a777e3;">
         <div class="card-body">
             <h4 class="card-title mb-3"><i class="ti ti-shield-check me-1"></i> Exam Instructions</h4>
             <ul class="mb-3">
                 <li>This is a proctored test. Once you start, the screen will switch to full-screen mode.</li>
                 <li>Do not switch tabs, open another app, or exit full-screen. You get <strong>2 warnings</strong> &mdash; the <strong>3rd time</strong> you leave the exam, it is <strong>auto-submitted immediately</strong> with whatever answers you've selected so far.</li>
+                <li>Your camera stays on for the whole exam. If your face isn't visible, more than one face appears, or a phone/device is seen in frame for a few seconds straight, your exam is <strong>auto-submitted immediately &mdash; no warning</strong>.</li>
                 <li>The timer keeps running no matter what you do &mdash; it will not pause.</li>
                 <li>You get one attempt. Once submitted (manually or automatically), it cannot be retaken.</li>
             </ul>
+
+            <div class="mb-3">
+                <div id="camStatus" class="small text-muted mb-2">
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    Preparing camera and AI monitoring&hellip;
+                </div>
+                <video id="examCamPreview" autoplay muted playsinline
+                       style="width: 200px; height: 150px; border-radius: 8px; background: #000; object-fit: cover;"></video>
+            </div>
+
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" id="ackCheckbox">
                 <label class="form-check-label" for="ackCheckbox">
@@ -48,6 +63,7 @@
         {
             <input type="hidden" name="TabSwitchCount" id="tabSwitchCountField" value="0" />
             <input type="hidden" name="AutoSubmitted" id="autoSubmittedField" value="false" />
+            <input type="hidden" name="ViolationReason" id="violationReasonField" value="" />
         }
 
         @for (int i = 0; i < Model.Questions.Count; i++)
@@ -78,14 +94,23 @@
 </div>
 
 @section Scripts {
+    @if (Model.IsTestEvent)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/face-api.js@@0.22.2/dist/face-api.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@@tensorflow/tfjs@@4.11.0/dist/tf.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@@tensorflow-models/coco-ssd@@2.2.3/dist/coco-ssd.min.js"></script>
+    }
     <script>
         (function () {
             let duration = @Model.DurationMinutes * 60; // seconds
             const timerEl = document.getElementById('timer');
             const form = document.getElementById('quizForm');
             const isTestEvent = @(Model.IsTestEvent ? "true" : "false");
+            const quizId = @Model.QuizId;
             let isSubmitting = false;
             let tabSwitchCount = 0;
+            let camStream = null;
+            let camReady = false;
 
             function updateTimer() {
                 const minutes = Math.floor(duration / 60);
@@ -118,12 +143,13 @@
                 isSubmitting = true;
                 const field = document.getElementById('tabSwitchCountField');
                 if (field) field.value = tabSwitchCount;
+                if (camStream) camStream.getTracks().forEach(function (t) { t.stop(); });
             });
 
             if (!isTestEvent) {
                 updateTimer();
                 interval = setInterval(updateTimer, 1000);
-                return; // regular quizzes: no fullscreen lockdown, no tab-switch monitoring
+                return; // regular quizzes: no fullscreen lockdown, no tab-switch/camera monitoring
             }
 
             // ---- Proctored Test Event flow below ----
@@ -134,13 +160,33 @@
             const quizContent = document.getElementById('quizContent');
             const warningBanner = document.getElementById('examWarningBanner');
             const warningText = document.getElementById('examWarningText');
+            const camPreview = document.getElementById('examCamPreview');
+            const camPreviewPinned = document.getElementById('examCamPreviewPinned');
+            const camCanvas = document.getElementById('examCamCanvas');
+            const camStatus = document.getElementById('camStatus');
 
-            ackCheckbox.addEventListener('change', function () {
-                startBtn.disabled = !ackCheckbox.checked;
-            });
+            function updateStartButtonState() {
+                startBtn.disabled = !(ackCheckbox.checked && camReady);
+            }
+            ackCheckbox.addEventListener('change', updateStartButtonState);
 
-            // Strike system: the first MAX_WARNINGS violations just show a warning: the
-            // next one after that auto-submits immediately, no grace period.
+            function getAntiForgeryToken() {
+                return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+            }
+
+            function autoSubmit(reason) {
+                if (isSubmitting) return;
+                isSubmitting = true;
+                document.getElementById('autoSubmittedField').value = 'true';
+                document.getElementById('tabSwitchCountField').value = tabSwitchCount;
+                document.getElementById('violationReasonField').value = reason || '';
+                if (camCheckInterval) clearInterval(camCheckInterval);
+                if (camStream) camStream.getTracks().forEach(function (t) { t.stop(); });
+                form.submit();
+            }
+
+            // ---- Tab/app-switch + full-screen strike system: 2 warnings, 3rd = instant submit ----
+
             const MAX_WARNINGS = 2;
             let hadFullscreen = false;
             let lastViolationAt = 0;
@@ -176,14 +222,6 @@
                 }, 6000);
             }
 
-            function autoSubmit() {
-                if (isSubmitting) return;
-                isSubmitting = true;
-                document.getElementById('autoSubmittedField').value = 'true';
-                document.getElementById('tabSwitchCountField').value = tabSwitchCount;
-                form.submit();
-            }
-
             // Called for any "left the exam" signal: tab switch, app switch, or exiting
             // full-screen. Debounced since one physical action (e.g. switching tabs) can
             // fire several of these events within the same instant.
@@ -195,7 +233,7 @@
                 tabSwitchCount++;
 
                 if (tabSwitchCount > MAX_WARNINGS) {
-                    autoSubmit();
+                    autoSubmit('Left the exam ' + tabSwitchCount + ' times (tab switch, app switch, or exited full-screen).');
                 } else {
                     showWarning(reason);
                 }
@@ -232,15 +270,112 @@
                 requestFullscreen();
             });
 
+            // ---- Camera-based proctoring: no face / multiple faces / phone in frame ----
+
+            const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@@0.22.2/weights';
+            const CAM_POLL_MS = 2000;
+            const CAM_STREAK_THRESHOLD = 3; // ~6s sustained at a 2s poll interval, no warning - instant submit
+            let cocoModel = null;
+            let camCheckInterval = null;
+            let noFaceStreak = 0;
+            let multiFaceStreak = 0;
+            let phoneStreak = 0;
+
+            async function setupCamera() {
+                try {
+                    camStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Loading AI monitoring models&hellip;';
+                    await Promise.all([
+                        faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
+                        cocoSsd.load().then(function (m) { cocoModel = m; })
+                    ]);
+
+                    camStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Requesting camera access&hellip;';
+                    camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: false });
+                    camPreview.srcObject = camStream;
+                    camPreviewPinned.srcObject = camStream;
+
+                    camStream.getVideoTracks()[0].addEventListener('ended', function () {
+                        if (started && !isSubmitting) {
+                            autoSubmit('Camera access was lost or turned off during the exam.');
+                        }
+                    });
+
+                    camReady = true;
+                    camStatus.innerHTML = '<i class="ti ti-circle-check text-success me-1"></i> Camera and AI monitoring ready.';
+                    updateStartButtonState();
+                } catch (err) {
+                    camReady = false;
+                    camStatus.innerHTML = '<i class="ti ti-alert-triangle text-danger me-1"></i> ' +
+                        'Camera access is required for this exam. Please allow camera access and retry. ' +
+                        '<button type="button" id="camRetryBtn" class="btn btn-sm btn-outline-primary ms-2">Retry</button>';
+                    const retryBtn = document.getElementById('camRetryBtn');
+                    if (retryBtn) retryBtn.addEventListener('click', setupCamera);
+                    updateStartButtonState();
+                }
+            }
+            setupCamera();
+
+            function reportCameraViolation(reason, dataUrl) {
+                fetch('/Quiz/ReportCameraViolation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    body: JSON.stringify({ quizId: quizId, reason: reason, imageData: dataUrl })
+                }).catch(function () {
+                    // Best-effort evidence upload; never let this block the actual auto-submit.
+                });
+            }
+
+            async function runCameraCheck() {
+                if (!started || isSubmitting || !camReady) return;
+                try {
+                    const ctx = camCanvas.getContext('2d');
+                    ctx.drawImage(camPreview, 0, 0, camCanvas.width, camCanvas.height);
+
+                    const faces = await faceapi.detectAllFaces(camCanvas, new faceapi.TinyFaceDetectorOptions());
+                    let phoneDetected = false;
+                    if (cocoModel) {
+                        const predictions = await cocoModel.detect(camCanvas);
+                        phoneDetected = predictions.some(function (p) { return p.class === 'cell phone' && p.score > 0.5; });
+                    }
+
+                    let issue = null;
+                    if (faces.length === 0) issue = 'noFace';
+                    else if (faces.length > 1) issue = 'multiFace';
+                    else if (phoneDetected) issue = 'phone';
+
+                    noFaceStreak = issue === 'noFace' ? noFaceStreak + 1 : 0;
+                    multiFaceStreak = issue === 'multiFace' ? multiFaceStreak + 1 : 0;
+                    phoneStreak = issue === 'phone' ? phoneStreak + 1 : 0;
+
+                    let triggered = null;
+                    if (noFaceStreak >= CAM_STREAK_THRESHOLD) triggered = 'No face detected in camera for several seconds.';
+                    else if (multiFaceStreak >= CAM_STREAK_THRESHOLD) triggered = 'Multiple faces detected in camera.';
+                    else if (phoneStreak >= CAM_STREAK_THRESHOLD) triggered = 'A phone or second device was detected in camera view.';
+
+                    if (triggered) {
+                        const dataUrl = camCanvas.toDataURL('image/jpeg', 0.6);
+                        reportCameraViolation(triggered, dataUrl);
+                        autoSubmit('Camera: ' + triggered);
+                    }
+                } catch (err) {
+                    // A single failed detection round should never crash the exam - just skip it.
+                }
+            }
+
             startBtn.addEventListener('click', function () {
-                if (!ackCheckbox.checked) return;
+                if (!ackCheckbox.checked || !camReady) return;
                 instructions.classList.add('d-none');
                 quizContent.classList.remove('d-none');
+                camPreviewPinned.classList.remove('d-none');
                 started = true;
                 startedAt = Date.now();
                 requestFullscreen();
                 updateTimer();
                 interval = setInterval(updateTimer, 1000);
+                camCheckInterval = setInterval(runCameraCheck, CAM_POLL_MS);
             });
         })();
     </script>

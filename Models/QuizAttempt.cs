@@ -29,6 +29,9 @@ namespace OnlineQuizApp.Models
         // Exam-integrity signals for proctored Test Event attempts (always 0/false for regular quizzes).
         public int TabSwitchCount { get; set; }
         public bool AutoSubmitted { get; set; }
+        // Human-readable reason when AutoSubmitted is true, e.g. "3 tab/app switches" or
+        // "Camera: multiple faces detected". Null for manual submissions.
+        public string? ViolationReason { get; set; }
 
         public ICollection<UserAnswer> Answers { get; set; } = new List<UserAnswer>();
     }

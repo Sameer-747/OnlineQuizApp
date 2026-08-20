@@ -21,6 +21,7 @@ namespace OnlineQuizApp.Data
         public DbSet<StudentBadge> StudentBadges { get; set; } = default!;
         public DbSet<TestEvent> TestEvents { get; set; } = default!;
         public DbSet<TestEventAssignment> TestEventAssignments { get; set; } = default!;
+        public DbSet<ExamSnapshot> ExamSnapshots { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

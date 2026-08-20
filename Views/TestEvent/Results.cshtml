@@ -111,9 +111,15 @@ else
                         <td>
                             @if (row.Attempted && row.AutoSubmitted)
                             {
-                                <span class="badge bg-danger" title="Left the exam window/full-screen and didn't return in time">
-                                    <i class="ti ti-alert-triangle"></i> Auto-submitted (@row.TabSwitchCount)
+                                <span class="badge bg-danger d-block mb-1" style="white-space: normal; text-align: left;" title="@row.ViolationReason">
+                                    <i class="ti ti-alert-triangle"></i> Auto-submitted@(row.ViolationReason != null ? ": " + row.ViolationReason : "")
                                 </span>
+                                @if (row.LatestSnapshotId.HasValue)
+                                {
+                                    <a asp-action="Snapshot" asp-route-id="@row.LatestSnapshotId.Value" target="_blank" class="small">
+                                        <i class="ti ti-camera"></i> View snapshot
+                                    </a>
+                                }
                             }
                             else if (row.Attempted && row.TabSwitchCount > 0)
                             {

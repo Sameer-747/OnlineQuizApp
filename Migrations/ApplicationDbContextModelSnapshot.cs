@@ -386,6 +386,9 @@ namespace OnlineQuizApp.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ViolationReason")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("QuizId");
@@ -393,6 +396,42 @@ namespace OnlineQuizApp.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("QuizAttempts");
+                });
+
+            modelBuilder.Entity("OnlineQuizApp.Models.ExamSnapshot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CapturedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImageData")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("QuizId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuizId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ExamSnapshots");
                 });
 
             modelBuilder.Entity("OnlineQuizApp.Models.Section", b =>
@@ -760,6 +799,25 @@ namespace OnlineQuizApp.Migrations
                     b.Navigation("TestEvent");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OnlineQuizApp.Models.ExamSnapshot", b =>
+                {
+                    b.HasOne("OnlineQuizApp.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OnlineQuizApp.Models.Quiz", "Quiz")
+                        .WithMany()
+                        .HasForeignKey("QuizId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Quiz");
                 });
 
             modelBuilder.Entity("OnlineQuizApp.Models.UserAnswer", b =>
