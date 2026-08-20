@@ -48,6 +48,34 @@ namespace OnlineQuizApp.Controllers
                 .Where(c => c.Quizzes.Count > 0)
                 .ToList();
 
+            // Show a "you have a live test" card while any assigned Test Event is currently
+            // active and not yet attempted - it disappears on its own once the event expires,
+            // since the query below simply stops matching it.
+            int activeTestCount = 0;
+            if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
+            {
+                var userId = _userManager.GetUserId(User);
+                var now = DateTime.UtcNow;
+
+                var activeAssignments = await _context.TestEventAssignments
+                    .Where(a => a.UserId == userId
+                        && a.TestEvent!.StartTime <= now
+                        && a.TestEvent!.EndTime >= now)
+                    .ToListAsync();
+
+                if (activeAssignments.Count > 0)
+                {
+                    var quizIds = activeAssignments.Select(a => a.QuizId).ToList();
+                    var attemptedQuizIds = await _context.QuizAttempts
+                        .Where(a => a.UserId == userId && quizIds.Contains(a.QuizId))
+                        .Select(a => a.QuizId)
+                        .ToListAsync();
+
+                    activeTestCount = activeAssignments.Count(a => !attemptedQuizIds.Contains(a.QuizId));
+                }
+            }
+            ViewBag.ActiveTestCount = activeTestCount;
+
             return View(categories);
         }
 

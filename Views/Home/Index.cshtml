@@ -1,6 +1,7 @@
 @model List<Category>
 @{
     ViewData["Title"] = "Home";
+    int activeTestCount = ViewBag.ActiveTestCount ?? 0;
 }
 
 <div class="text-center mb-5 py-4 glass" style="border-radius: 24px;">
@@ -13,6 +14,29 @@
         <i class="ti ti-rocket me-1"></i> Browse All Quizzes
     </a>
 </div>
+
+@if (activeTestCount > 0)
+{
+    <div class="card mb-4" style="border: none; background: linear-gradient(135deg, #6e8efb, #a777e3); color: #fff;">
+        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <span class="d-inline-flex align-items-center justify-content-center"
+                      style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,0.2);">
+                    <i class="ti ti-code" style="font-size:24px"></i>
+                </span>
+                <div>
+                    <h5 class="mb-1">You have a live test event!</h5>
+                    <p class="mb-0" style="opacity:0.9;">
+                        @activeTestCount test@(activeTestCount == 1 ? " is" : "s are") open right now - don't miss the window.
+                    </p>
+                </div>
+            </div>
+            <a asp-controller="MyTests" asp-action="Index" class="btn btn-light fw-semibold">
+                <i class="ti ti-arrow-right me-1"></i>Go to My Tests
+            </a>
+        </div>
+    </div>
+}
 
 <div class="row">
     @foreach (var category in Model)
