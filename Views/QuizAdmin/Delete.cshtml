@@ -1,13 +1,34 @@
 @model Quiz
 @{
     ViewData["Title"] = "Delete Quiz";
+    int attemptCount = ViewBag.AttemptCount ?? 0;
 }
 
 <h2>Delete Quiz</h2>
 <p>Are you sure you want to delete <strong>@Model.Title</strong> (@Model.Category?.Name)? This will also delete its questions.</p>
 
-<form asp-action="Delete" method="post">
-    <input type="hidden" asp-for="Id" />
-    <button type="submit" class="btn btn-danger">Delete</button>
-    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
-</form>
+@if (attemptCount > 0)
+{
+    <div class="alert alert-warning">
+        <strong>@attemptCount student @(attemptCount == 1 ? "attempt has" : "attempts have")</strong> already been recorded for this quiz.
+        A normal delete will be blocked to protect that history. You can force-delete below, but this
+        <strong>permanently erases those students' scores/results</strong> along with the quiz. This cannot be undone.
+    </div>
+
+    <form asp-action="Delete" method="post">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" name="force" value="true" />
+        <button type="submit" class="btn btn-danger">
+            <i class="ti ti-alert-triangle me-1"></i>Force Delete (also removes @attemptCount attempt@(attemptCount == 1 ? "" : "s"))
+        </button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+}
+else
+{
+    <form asp-action="Delete" method="post">
+        <input type="hidden" asp-for="Id" />
+        <button type="submit" class="btn btn-danger">Delete</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+}

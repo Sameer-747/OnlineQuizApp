@@ -155,12 +155,14 @@ namespace OnlineQuizApp.Controllers
             if (quiz == null) return NotFound();
             if (!isSuper && quiz.SectionId != sectionId) return Forbid();
 
+            ViewBag.AttemptCount = await _context.QuizAttempts.CountAsync(a => a.QuizId == id);
+
             return View(quiz);
         }
 
         [HttpPost("Delete/{id:int}"), ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(int id, bool force = false)
         {
             var (isSuper, sectionId) = await GetScopeAsync();
 
@@ -171,9 +173,23 @@ namespace OnlineQuizApp.Controllers
 
                 try
                 {
+                    if (force)
+                    {
+                        var attempts = await _context.QuizAttempts
+                            .Where(a => a.QuizId == id)
+                            .ToListAsync();
+                        if (attempts.Count > 0)
+                        {
+                            _context.QuizAttempts.RemoveRange(attempts);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+
                     _context.Quizzes.Remove(quiz);
                     await _context.SaveChangesAsync();
-                    TempData["Success"] = "Quiz deleted.";
+                    TempData["Success"] = force
+                        ? "Quiz deleted, along with its recorded student attempts."
+                        : "Quiz deleted.";
                 }
                 catch (DbUpdateException)
                 {
