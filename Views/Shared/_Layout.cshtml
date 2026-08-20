@@ -1,3 +1,5 @@
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<ApplicationUser> UserManager
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +18,66 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
+@{
+    bool isSuperAdmin = User.Identity?.IsAuthenticated == true
+        && User.Identity.Name?.ToLower() == "admin@quizapp.com";
+    string? currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    Func<string, string> activeIf = c => string.Equals(currentController, c, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
 <body>
+@if (isSuperAdmin)
+{
+    var currentUser = await UserManager.GetUserAsync(User);
+    var displayName = !string.IsNullOrWhiteSpace(currentUser?.FullName) ? currentUser!.FullName : User.Identity?.Name;
+
+    <div class="admin-shell">
+        <aside class="admin-sidebar">
+            <a class="sidebar-brand" asp-controller="Home" asp-action="Index">
+                <i class="ti ti-sparkles"></i>
+                <span>Online Quiz App</span>
+            </a>
+
+            <div class="sidebar-badge">
+                <i class="ti ti-shield-check me-1"></i>Super Admin
+            </div>
+
+            <nav class="sidebar-nav">
+                <a class="@activeIf("Home")" asp-controller="Home" asp-action="Index"><i class="ti ti-home"></i>Home</a>
+                <a class="@activeIf("Quiz")" asp-controller="Quiz" asp-action="Index"><i class="ti ti-list-details"></i>Quizzes</a>
+                <a class="@activeIf("Category")" asp-controller="Category" asp-action="Index"><i class="ti ti-category"></i>Categories</a>
+                <a class="@activeIf("QuizAdmin")" asp-controller="QuizAdmin" asp-action="Index"><i class="ti ti-settings"></i>Manage Quizzes</a>
+                <a class="@activeIf("TestEvent")" asp-controller="TestEvent" asp-action="Index"><i class="ti ti-code"></i>Test Events</a>
+                <a class="@activeIf("ResultsAdmin")" asp-controller="ResultsAdmin" asp-action="Index"><i class="ti ti-chart-bar"></i>Student Results</a>
+
+                <div class="sidebar-divider"></div>
+
+                <a class="@activeIf("AdminManagement")" asp-controller="AdminManagement" asp-action="Index"><i class="ti ti-shield-check"></i>Manage Admins</a>
+                <a class="@activeIf("SectionManagement")" asp-controller="SectionManagement" asp-action="Index"><i class="ti ti-building-community"></i>Manage Sections</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a asp-controller="Profile" asp-action="Index" class="sidebar-user">
+                    <i class="ti ti-user-circle"></i>
+                    <span>@displayName</span>
+                </a>
+                <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })" method="post">
+                    <button type="submit" class="sidebar-logout"><i class="ti ti-logout"></i>Logout</button>
+                </form>
+            </div>
+        </aside>
+
+        <div class="admin-content">
+            <main role="main" class="container-fluid px-4 py-4">
+                @RenderBody()
+            </main>
+            <footer class="text-center py-3 text-muted small">
+                &copy; @DateTime.Now.Year - Online Quiz App
+            </footer>
+        </div>
+    </div>
+}
+else
+{
     <header>
         <nav class="navbar navbar-expand-sm navbar-light glass-navbar mb-4">
             <div class="container-fluid px-3 px-lg-4">
@@ -65,15 +126,6 @@
                                 <a class="nav-link" asp-controller="ResultsAdmin" asp-action="Index"><i class="ti ti-chart-bar me-1"></i>Student Results</a>
                             </li>
                         }
-                        @if (User.Identity != null && User.Identity.Name?.ToLower() == "admin@quizapp.com")
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="AdminManagement" asp-action="Index"><i class="ti ti-shield-check me-1"></i>Manage Admins</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="SectionManagement" asp-action="Index"><i class="ti ti-building-community me-1"></i>Manage Sections</a>
-                            </li>
-                        }
                     </ul>
                     <partial name="_LoginPartial" />
                 </div>
@@ -92,6 +144,7 @@
             &copy; @DateTime.Now.Year - Online Quiz App
         </div>
     </footer>
+}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     @await RenderSectionAsync("Scripts", required: false)
