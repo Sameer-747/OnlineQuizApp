@@ -272,7 +272,9 @@
 
             // ---- Camera-based proctoring: no face / multiple faces / phone in frame ----
 
-            const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@@0.22.2/weights';
+            // The npm package doesn't publish model weight files, only the GitHub repo does,
+            // so these load from jsdelivr's GitHub CDN instead of the npm one.
+            const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@@master/weights';
             const CAM_POLL_MS = 2000;
             const CAM_STREAK_THRESHOLD = 3; // ~6s sustained at a 2s poll interval, no warning - instant submit
             let cocoModel = null;
