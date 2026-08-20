@@ -45,6 +45,9 @@ namespace OnlineQuizApp.Controllers
                 .Include(q => q.Category)
                 .Include(q => q.Questions)
                 .Include(q => q.Section)
+                // Test Event quizzes are managed (and deleted) from the Test Events page,
+                // where deleting the parent event cleans up its quizzes + attempts together.
+                .Where(q => q.TestEventId == null)
                 .AsQueryable();
 
             if (!isSuper)
