@@ -36,11 +36,21 @@ const { useState } = React;
 
 const COMMON_LANGUAGES = ["Python", "Java", "C++", "C", "C#", "JavaScript", "SQL", "HTML/CSS"];
 
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function toDateInput(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function toTimeInput(d) { return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+
 function TestEventApp({ isSuper, sections }) {
+    const now = new Date();
+    const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
+
     const [title, setTitle] = useState('');
     const [sectionId, setSectionId] = useState(sections[0]?.id || '');
-    const [startTime, setStartTime] = useState('');
-    const [endTime, setEndTime] = useState('');
+    const [startDate, setStartDate] = useState(toDateInput(now));
+    const [startClock, setStartClock] = useState(toTimeInput(now));
+    const [endDate, setEndDate] = useState(toDateInput(inOneHour));
+    const [endClock, setEndClock] = useState(toTimeInput(inOneHour));
     const [duration, setDuration] = useState(15);
     const [count, setCount] = useState(10);
     const [difficulty, setDifficulty] = useState('medium');
@@ -66,12 +76,28 @@ function TestEventApp({ isSuper, sections }) {
         setCustomLang('');
     }
 
+    function applyEndPreset(hoursFromStart) {
+        if (!startDate || !startClock) return;
+        const start = new Date(`${startDate}T${startClock}`);
+        const end = new Date(start.getTime() + hoursFromStart * 60 * 60 * 1000);
+        setEndDate(toDateInput(end));
+        setEndClock(toTimeInput(end));
+    }
+
     async function submit() {
         setError('');
         if (!title.trim()) { setError('Please enter a title.'); return; }
         if (selectedLangs.length === 0) { setError('Select at least one language.'); return; }
-        if (!startTime || !endTime) { setError('Please set a start and end time.'); return; }
+        if (!startDate || !startClock || !endDate || !endClock) { setError('Please set a start and end time.'); return; }
         if (isSuper && !sectionId) { setError('Please choose a section.'); return; }
+
+        const startTime = `${startDate}T${startClock}`;
+        const endTime = `${endDate}T${endClock}`;
+
+        if (new Date(endTime) <= new Date(startTime)) {
+            setError('End time must be after the start time.');
+            return;
+        }
 
         setSubmitting(true);
         try {
@@ -144,17 +170,32 @@ function TestEventApp({ isSuper, sections }) {
                     </div>
                 )}
 
-                <div className="row g-3 mb-3">
+                <div className="row g-3 mb-2">
                     <div className="col-6">
                         <label className="form-label fw-semibold">Starts At</label>
-                        <input type="datetime-local" className="form-control" value={startTime}
-                            onChange={e => setStartTime(e.target.value)} />
+                        <div className="d-flex gap-2">
+                            <input type="date" className="form-control" value={startDate}
+                                onChange={e => setStartDate(e.target.value)} />
+                            <input type="time" className="form-control" value={startClock}
+                                onChange={e => setStartClock(e.target.value)} />
+                        </div>
                     </div>
                     <div className="col-6">
                         <label className="form-label fw-semibold">Ends At</label>
-                        <input type="datetime-local" className="form-control" value={endTime}
-                            onChange={e => setEndTime(e.target.value)} />
+                        <div className="d-flex gap-2">
+                            <input type="date" className="form-control" value={endDate}
+                                onChange={e => setEndDate(e.target.value)} />
+                            <input type="time" className="form-control" value={endClock}
+                                onChange={e => setEndClock(e.target.value)} />
+                        </div>
                     </div>
+                </div>
+                <div className="mb-3 d-flex align-items-center gap-2 flex-wrap">
+                    <small className="text-muted me-1">Quick end time:</small>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => applyEndPreset(1)}>+1 hour</button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => applyEndPreset(24)}>+1 day</button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => applyEndPreset(24 * 3)}>+3 days</button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => applyEndPreset(24 * 7)}>+1 week</button>
                 </div>
 
                 <div className="row g-3 mb-3">
