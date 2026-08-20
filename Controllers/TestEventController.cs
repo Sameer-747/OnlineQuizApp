@@ -22,6 +22,7 @@ namespace OnlineQuizApp.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<TestEventController> _logger;
         private const string SuperAdminEmail = "admin@quizapp.com";
         private const string AiCategoryName = "AI Language Tests";
 
@@ -29,12 +30,14 @@ namespace OnlineQuizApp.Controllers
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ILogger<TestEventController> logger)
         {
             _context = context;
             _userManager = userManager;
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
+            _logger = logger;
         }
 
         private bool IsSuperAdmin() => User.Identity?.Name?.ToLower() == SuperAdminEmail.ToLower();
@@ -182,7 +185,7 @@ namespace OnlineQuizApp.Controllers
             {
                 // Groq's free-tier rate limit trips almost immediately if requests fire
                 // back-to-back, so space them out a little.
-                if (!first) await Task.Delay(2000);
+                if (!first) await Task.Delay(3000);
                 first = false;
 
                 var generated = await GenerateQuestionsForLanguageAsync(language, questionCount, difficulty);
@@ -447,7 +450,7 @@ Rules:
                 temperature = 0.7
             });
 
-            const int maxAttempts = 4;
+            const int maxAttempts = 5;
             for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
                 HttpResponseMessage response;
@@ -457,8 +460,9 @@ Rules:
                         "https://api.groq.com/openai/v1/chat/completions",
                         new StringContent(body, Encoding.UTF8, "application/json"));
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger.LogWarning(ex, "Groq request failed (network) for {Language}, attempt {Attempt}", language, attempt);
                     return null;
                 }
 
@@ -467,7 +471,11 @@ Rules:
                 if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
                     (int)response.StatusCode >= 500)
                 {
-                    if (attempt == maxAttempts) return null;
+                    if (attempt == maxAttempts)
+                    {
+                        _logger.LogWarning("Groq gave up on {Language} after {Attempts} attempts, last status {Status}", language, attempt, response.StatusCode);
+                        return null;
+                    }
 
                     TimeSpan wait = TimeSpan.FromSeconds(Math.Pow(2, attempt) * 2); // 4s, 8s, 16s
                     if (response.Headers.RetryAfter?.Delta is TimeSpan retryAfter)
@@ -477,7 +485,12 @@ Rules:
                     continue;
                 }
 
-                if (!response.IsSuccessStatusCode) return null;
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Groq returned {Status} for {Language}: {Body}", response.StatusCode, language, errorBody);
+                    return null;
+                }
 
                 try
                 {
@@ -491,11 +504,19 @@ Rules:
 
                     var cleaned = text.Replace("```json", "").Replace("```", "").Trim();
 
-                    return JsonSerializer.Deserialize<List<GeneratedAiQuestion>>(
+                    var parsed = JsonSerializer.Deserialize<List<GeneratedAiQuestion>>(
                         cleaned, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (parsed == null || parsed.Count == 0)
+                    {
+                        _logger.LogWarning("Groq response for {Language} parsed to an empty question list. Raw content: {Content}", language, text);
+                    }
+
+                    return parsed;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger.LogWarning(ex, "Failed to parse Groq response for {Language}", language);
                     return null;
                 }
             }
