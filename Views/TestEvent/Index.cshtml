@@ -70,87 +70,14 @@ else
                     <td><span class="badge @badgeClass">@te.Status</span></td>
                     <td>
                         <a asp-action="Results" asp-route-id="@te.Id" class="btn btn-sm btn-outline-primary">Results</a>
-                        <button type="button" class="btn btn-sm btn-outline-danger delete-event-btn"
-                                data-id="@te.Id" data-title="@te.Title" data-expired="@(te.Status == "Expired" ? "true" : "false")">
-                            Delete
-                        </button>
+                        <form asp-action="Delete" asp-route-id="@te.Id" method="post" class="d-inline"
+                              onsubmit="return confirm('Delete &quot;@te.Title&quot; and all its language quizzes? @(te.Status == "Expired" ? "This also permanently deletes any student attempts already recorded for it. " : "")This cannot be undone.');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
                     </td>
                 </tr>
             }
         </tbody>
     </table>
-
-    <div class="modal fade" id="deleteEventModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="ti ti-alert-triangle me-2 text-danger"></i>Delete Test Event</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p id="deleteEventMessage" class="mb-0"></p>
-                    <p id="deleteEventStatus" class="mb-0 mt-2 small text-muted d-none"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" id="deleteEventCancelBtn" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <form id="deleteEventForm" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" id="deleteEventSubmitBtn" class="btn btn-danger">
-                            <i class="ti ti-trash me-1"></i>Delete
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    @section Scripts {
-        <script>
-            var deleteEventForm = document.getElementById('deleteEventForm');
-            var deleteEventStatus = document.getElementById('deleteEventStatus');
-            var deleteEventSubmitBtn = document.getElementById('deleteEventSubmitBtn');
-            var deleteEventCancelBtn = document.getElementById('deleteEventCancelBtn');
-
-            document.querySelectorAll('.delete-event-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    var id = this.dataset.id;
-                    var title = this.dataset.title;
-                    var isExpired = this.dataset.expired === 'true';
-
-                    deleteEventForm.action = '/Admin/TestEvents/Delete/' + id;
-                    deleteEventForm.dataset.pending = 'false';
-
-                    var msg = 'Delete "' + title + '" and all its language quizzes?';
-                    if (isExpired) {
-                        msg += ' This also permanently deletes any student attempts already recorded for it.';
-                    }
-                    msg += ' This cannot be undone.';
-                    document.getElementById('deleteEventMessage').textContent = msg;
-
-                    deleteEventStatus.classList.add('d-none');
-                    deleteEventStatus.textContent = '';
-                    deleteEventStatus.classList.remove('text-danger');
-                    deleteEventSubmitBtn.disabled = false;
-                    deleteEventSubmitBtn.innerHTML = '<i class="ti ti-trash me-1"></i>Delete';
-
-                    bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteEventModal')).show();
-                });
-            });
-
-            // Plain native form submission (no fetch/AJAX) - the browser handles the POST and
-            // redirect itself, exactly like every other delete/save form in this app. We only
-            // add non-blocking visual feedback here; nothing here can stop the actual submit.
-            deleteEventForm.addEventListener('submit', function () {
-                if (deleteEventForm.dataset.pending === 'true') return;
-                deleteEventForm.dataset.pending = 'true';
-
-                deleteEventSubmitBtn.disabled = true;
-                deleteEventCancelBtn.disabled = true;
-                deleteEventSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
-
-                deleteEventStatus.classList.remove('d-none', 'text-danger');
-                deleteEventStatus.textContent = 'Working on it - this can take up to a minute if the server was idle. Please wait for the page to reload.';
-            });
-        </script>
-    }
 }
