@@ -38,7 +38,9 @@ namespace OnlineQuizApp.Controllers
                     TempData["Error"] = "You are not yet assigned to a section.";
             }
 
-            var quizQuery = _context.Quizzes.AsQueryable();
+            // Exclude Test Event quizzes here - they have their own dedicated
+            // per-language results view under Test Events > Results.
+            var quizQuery = _context.Quizzes.Where(q => q.TestEventId == null);
             if (!isSuper)
                 quizQuery = quizQuery.Where(q => q.SectionId == sectionId);
 
