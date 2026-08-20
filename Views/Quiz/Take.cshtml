@@ -20,7 +20,7 @@
     </div>
 
     <video id="examCamPreviewPinned" autoplay muted playsinline class="d-none"
-           style="position: fixed; bottom: 16px; right: 16px; width: 160px; height: 120px; border-radius: 8px; border: 2px solid #a777e3; z-index: 1040; object-fit: cover; background: #000;"></video>
+           style="position: fixed; bottom: 16px; right: 16px; width: 160px; height: 120px; border-radius: 8px; border: 2px solid #a777e3; z-index: 1040; object-fit: cover; background: #000; transform: scaleX(-1);"></video>
     <canvas id="examCamCanvas" width="320" height="240" class="d-none"></canvas>
 
     <div id="examInstructions" class="card mb-4" style="border: 2px solid #a777e3;">
@@ -40,7 +40,7 @@
                     Preparing camera and AI monitoring&hellip;
                 </div>
                 <video id="examCamPreview" autoplay muted playsinline
-                       style="width: 200px; height: 150px; border-radius: 8px; background: #000; object-fit: cover;"></video>
+                       style="width: 200px; height: 150px; border-radius: 8px; background: #000; object-fit: cover; transform: scaleX(-1);"></video>
             </div>
 
             <div class="form-check mb-3">
