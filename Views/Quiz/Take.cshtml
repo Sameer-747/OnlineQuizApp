@@ -15,7 +15,7 @@
         <div>
             <i class="ti ti-alert-triangle me-1"></i>
             <span id="examWarningText">You left the exam.</span>
-            <strong>Click here to return to full-screen.</strong>
+            <strong>Click here to re-enter full-screen.</strong>
         </div>
     </div>
 
@@ -24,7 +24,7 @@
             <h4 class="card-title mb-3"><i class="ti ti-shield-check me-1"></i> Exam Instructions</h4>
             <ul class="mb-3">
                 <li>This is a proctored test. Once you start, the screen will switch to full-screen mode.</li>
-                <li>Do not switch tabs, minimize the window, or exit full-screen. Doing so shows a warning countdown &mdash; if you don't return in time, your exam is <strong>auto-submitted</strong> with whatever answers you've selected so far.</li>
+                <li>Do not switch tabs, open another app, or exit full-screen. You get <strong>2 warnings</strong> &mdash; the <strong>3rd time</strong> you leave the exam, it is <strong>auto-submitted immediately</strong> with whatever answers you've selected so far.</li>
                 <li>The timer keeps running no matter what you do &mdash; it will not pause.</li>
                 <li>You get one attempt. Once submitted (manually or automatically), it cannot be retaken.</li>
             </ul>
@@ -139,10 +139,12 @@
                 startBtn.disabled = !ackCheckbox.checked;
             });
 
-            const GRACE_SECONDS = 10;
-            let graceTimer = null;
-            let graceRemaining = 0;
+            // Strike system: the first MAX_WARNINGS violations just show a warning: the
+            // next one after that auto-submits immediately, no grace period.
+            const MAX_WARNINGS = 2;
             let hadFullscreen = false;
+            let lastViolationAt = 0;
+            let warningHideTimer = null;
 
             function isFullscreenActive() {
                 return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
@@ -159,35 +161,19 @@
                 }
             }
 
-            function updateWarningText(reason) {
-                warningText.textContent = 'You left the exam (' + reason + '). Return within ' + graceRemaining + 's or it will be auto-submitted with your current answers.';
-            }
-
-            function startGrace(reason) {
-                if (graceTimer || isSubmitting) return;
-                tabSwitchCount++;
-                graceRemaining = GRACE_SECONDS;
+            function showWarning(reason) {
+                const remaining = MAX_WARNINGS - tabSwitchCount;
+                warningText.textContent = 'Warning ' + tabSwitchCount + ' of ' + MAX_WARNINGS + ': you left the exam (' + reason + ').' +
+                    (remaining > 0
+                        ? ' ' + remaining + ' more time' + (remaining === 1 ? '' : 's') + ' and your exam will be auto-submitted immediately.'
+                        : '');
                 warningBanner.classList.remove('d-none');
                 warningBanner.classList.add('d-flex');
-                updateWarningText(reason);
-                graceTimer = setInterval(function () {
-                    graceRemaining--;
-                    updateWarningText(reason);
-                    if (graceRemaining <= 0) {
-                        clearInterval(graceTimer);
-                        graceTimer = null;
-                        autoSubmit();
-                    }
-                }, 1000);
-            }
-
-            function maybeCancelGrace() {
-                if (!document.hidden && (isFullscreenActive() || !hadFullscreen) && graceTimer) {
-                    clearInterval(graceTimer);
-                    graceTimer = null;
+                if (warningHideTimer) clearTimeout(warningHideTimer);
+                warningHideTimer = setTimeout(function () {
                     warningBanner.classList.add('d-none');
                     warningBanner.classList.remove('d-flex');
-                }
+                }, 6000);
             }
 
             function autoSubmit() {
@@ -198,13 +184,25 @@
                 form.submit();
             }
 
-            document.addEventListener('visibilitychange', function () {
+            // Called for any "left the exam" signal: tab switch, app switch, or exiting
+            // full-screen. Debounced since one physical action (e.g. switching tabs) can
+            // fire several of these events within the same instant.
+            function registerViolation(reason) {
                 if (!started || isSubmitting) return;
-                if (document.hidden) {
-                    startGrace('switched tabs');
+                const now = Date.now();
+                if (now - lastViolationAt < 800) return;
+                lastViolationAt = now;
+                tabSwitchCount++;
+
+                if (tabSwitchCount > MAX_WARNINGS) {
+                    autoSubmit();
                 } else {
-                    maybeCancelGrace();
+                    showWarning(reason);
                 }
+            }
+
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) registerViolation('switched tabs');
             });
 
             // Catches switching to another application (e.g. the Dock, Cmd+Tab, another
@@ -212,35 +210,26 @@
             // would miss it.
             let startedAt = 0;
             window.addEventListener('blur', function () {
-                if (!started || isSubmitting) return;
                 if (Date.now() - startedAt < 1500) return; // ignore the fullscreen-entry transition itself
-                startGrace('switched to another app or window');
-            });
-            window.addEventListener('focus', function () {
-                if (!started || isSubmitting) return;
-                maybeCancelGrace();
+                registerViolation('switched to another app or window');
             });
 
             function onFullscreenChange() {
-                if (!started || isSubmitting) return;
                 if (isFullscreenActive()) {
                     hadFullscreen = true;
-                    maybeCancelGrace();
-                } else if (hadFullscreen) {
-                    startGrace('exited full-screen');
+                } else if (hadFullscreen && started && !isSubmitting) {
+                    hadFullscreen = false;
+                    registerViolation('exited full-screen');
                 }
             }
             document.addEventListener('fullscreenchange', onFullscreenChange);
             document.addEventListener('webkitfullscreenchange', onFullscreenChange);
             document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
-            // Browsers require a fresh click to re-enter full-screen (it can't be done
-            // automatically just because the student switched back to this tab).
+            // Optional: clicking the warning banner re-enters full-screen (browsers
+            // require a fresh user click to do this - it can't happen automatically).
             warningBanner.addEventListener('click', function () {
-                if (!document.hidden) {
-                    requestFullscreen();
-                    maybeCancelGrace();
-                }
+                requestFullscreen();
             });
 
             startBtn.addEventListener('click', function () {

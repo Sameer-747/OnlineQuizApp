@@ -15,8 +15,8 @@
 {
     <div class="alert alert-warning">
         <i class="ti ti-alert-triangle me-1"></i>
-        This attempt was auto-submitted because you left the exam window or full-screen mode and didn't return in time
-        (@Model.TabSwitchCount time@(Model.TabSwitchCount == 1 ? "" : "s") detected). Any answers you hadn't selected yet were left blank.
+        This attempt was auto-submitted because you left the exam (switched tabs, apps, or exited full-screen)
+        @Model.TabSwitchCount time@(Model.TabSwitchCount == 1 ? "" : "s") &mdash; past the 2-warning limit. Any answers you hadn't selected yet were left blank.
     </div>
 }
 
