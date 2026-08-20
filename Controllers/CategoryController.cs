@@ -130,8 +130,16 @@ namespace OnlineQuizApp.Controllers
             {
                 if (!isSuper && category.SectionId != sectionId) return Forbid();
 
-                _context.Categories.Remove(category);
-                await _context.SaveChangesAsync();
+                try
+                {
+                    _context.Categories.Remove(category);
+                    await _context.SaveChangesAsync();
+                    TempData["Success"] = "Category deleted.";
+                }
+                catch (DbUpdateException)
+                {
+                    TempData["Error"] = "Can't delete this category: one or more quizzes still belong to it. Move or delete those quizzes first (Test Event quizzes are removed by deleting their Test Event).";
+                }
             }
             return RedirectToAction(nameof(Index));
         }
