@@ -456,6 +456,118 @@ a:hover {
   color: #6e8efb !important;
 }
 
+/* ===================== Auth pages (Login / Register / Forgot Password) ===================== */
+.auth-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 1rem 3rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 2.25rem 2rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 12px 40px rgba(31, 38, 135, 0.18);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.auth-card:hover {
+  box-shadow: 0 18px 48px rgba(31, 38, 135, 0.22);
+  transform: translateY(-2px);
+}
+
+.auth-icon-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6e8efb, #a777e3);
+  color: #fff;
+  font-size: 26px;
+  margin: 0 auto 1rem;
+  box-shadow: 0 6px 18px rgba(110, 142, 251, 0.4);
+}
+
+.auth-title {
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.auth-subtitle {
+  text-align: center;
+  color: #5b5b7a;
+  font-size: 0.92rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Segmented Student/Admin toggle */
+.auth-toggle {
+  display: flex;
+  background: rgba(110, 142, 251, 0.12);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 1.5rem;
+  gap: 2px;
+}
+
+.auth-toggle button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.55rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #5b5b7a;
+  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+  cursor: pointer;
+}
+
+.auth-toggle button.active {
+  background: linear-gradient(90deg, #6e8efb, #a777e3);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(110, 142, 251, 0.4);
+}
+
+.auth-toggle button:not(.active):hover {
+  background: rgba(110, 142, 251, 0.2);
+  color: #3a3a55;
+}
+
+/* Inputs inside auth cards get a more noticeable "glass" hover before focus */
+.auth-card .form-control,
+.auth-card .form-select {
+  background: rgba(255, 255, 255, 0.55);
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.auth-card .form-control:hover,
+.auth-card .form-select:hover {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(167, 119, 227, 0.5);
+}
+
+.auth-card .btn-primary {
+  padding: 0.7rem;
+  font-size: 1.02rem;
+}
+
+.auth-footer-links {
+  text-align: center;
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 h1, h2, h3, h4, h5 {
   font-weight: 600;
   color: #2d2d47;
