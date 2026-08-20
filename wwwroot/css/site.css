@@ -568,6 +568,99 @@ a:hover {
   gap: 0.5rem;
 }
 
+/* ===================== Home hero ===================== */
+.hero-card {
+  padding: 3rem 2rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  transition: box-shadow 0.3s ease;
+}
+
+.hero-card:hover {
+  box-shadow: 0 12px 40px rgba(31, 38, 135, 0.2);
+}
+
+.hero-icon-badge {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6e8efb, #a777e3);
+  color: #fff;
+  font-size: 34px;
+  margin: 0 auto 1.25rem;
+  box-shadow: 0 8px 24px rgba(110, 142, 251, 0.4);
+}
+
+.hero-highlights {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.hero-highlight {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(110, 142, 251, 0.12);
+  color: #3a3a55;
+  font-weight: 500;
+  font-size: 0.88rem;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.hero-highlight:hover {
+  background: rgba(110, 142, 251, 0.22);
+  transform: translateY(-2px);
+}
+
+.hero-highlight i {
+  color: #6e8efb;
+  font-size: 18px;
+}
+
+/* Friendly empty states (no categories/quizzes yet, etc.) */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(110, 142, 251, 0.15);
+  color: #6e8efb;
+  font-size: 30px;
+  margin: 0 auto 1rem;
+}
+
+.empty-state h4 {
+  margin-bottom: 0.4rem;
+}
+
+.empty-state p {
+  color: #5b5b7a;
+  margin-bottom: 0;
+}
+
 h1, h2, h3, h4, h5 {
   font-weight: 600;
   color: #2d2d47;
