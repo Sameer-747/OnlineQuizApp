@@ -207,6 +207,20 @@
                 }
             });
 
+            // Catches switching to another application (e.g. the Dock, Cmd+Tab, another
+            // window) that doesn't necessarily hide the tab, so visibilitychange alone
+            // would miss it.
+            let startedAt = 0;
+            window.addEventListener('blur', function () {
+                if (!started || isSubmitting) return;
+                if (Date.now() - startedAt < 1500) return; // ignore the fullscreen-entry transition itself
+                startGrace('switched to another app or window');
+            });
+            window.addEventListener('focus', function () {
+                if (!started || isSubmitting) return;
+                maybeCancelGrace();
+            });
+
             function onFullscreenChange() {
                 if (!started || isSubmitting) return;
                 if (isFullscreenActive()) {
@@ -234,6 +248,7 @@
                 instructions.classList.add('d-none');
                 quizContent.classList.remove('d-none');
                 started = true;
+                startedAt = Date.now();
                 requestFullscreen();
                 updateTimer();
                 interval = setInterval(updateTimer, 1000);
