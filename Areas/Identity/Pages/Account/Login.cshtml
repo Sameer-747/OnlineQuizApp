@@ -61,7 +61,7 @@
                 <div>
                     <button id="login-submit" type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
                 </div>
-                <div class="mt-2">
+                <div class="mt-2" id="studentAuthLinks">
                     <p>
                         <a asp-page="./StudentRegister" asp-route-returnUrl="@Model.ReturnUrl" class="auth-link">Register as a new student</a>
                     </p>
@@ -80,6 +80,7 @@
             document.getElementById('loginTypeInput').value = type;
             document.getElementById('studentFields').style.display = type === 'student' ? 'block' : 'none';
             document.getElementById('adminFields').style.display = type === 'admin' ? 'block' : 'none';
+            document.getElementById('studentAuthLinks').style.display = type === 'student' ? 'block' : 'none';
             document.getElementById('studentTabBtn').classList.toggle('btn-primary', type === 'student');
             document.getElementById('studentTabBtn').classList.toggle('btn-outline-primary', type !== 'student');
             document.getElementById('adminTabBtn').classList.toggle('btn-primary', type === 'admin');

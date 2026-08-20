@@ -282,13 +282,32 @@
             let phoneStreak = 0;
 
             async function setupCamera() {
+                function showCamError(message) {
+                    camReady = false;
+                    camStatus.innerHTML = '<i class="ti ti-alert-triangle text-danger me-1"></i> ' + message +
+                        ' <button type="button" id="camRetryBtn" class="btn btn-sm btn-outline-primary ms-2">Retry</button>';
+                    const retryBtn = document.getElementById('camRetryBtn');
+                    if (retryBtn) retryBtn.addEventListener('click', setupCamera);
+                    updateStartButtonState();
+                }
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showCamError('This browser/connection does not support camera access (it requires HTTPS and a modern browser).');
+                    return;
+                }
+
                 try {
                     camStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Loading AI monitoring models&hellip;';
                     await Promise.all([
                         faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
                         cocoSsd.load().then(function (m) { cocoModel = m; })
                     ]);
+                } catch (modelErr) {
+                    showCamError('Could not load the AI monitoring models (' + (modelErr && modelErr.message ? modelErr.message : 'network error') + '). Check your internet connection and retry.');
+                    return;
+                }
 
+                try {
                     camStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Requesting camera access&hellip;';
                     camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: false });
                     camPreview.srcObject = camStream;
@@ -303,14 +322,18 @@
                     camReady = true;
                     camStatus.innerHTML = '<i class="ti ti-circle-check text-success me-1"></i> Camera and AI monitoring ready.';
                     updateStartButtonState();
-                } catch (err) {
-                    camReady = false;
-                    camStatus.innerHTML = '<i class="ti ti-alert-triangle text-danger me-1"></i> ' +
-                        'Camera access is required for this exam. Please allow camera access and retry. ' +
-                        '<button type="button" id="camRetryBtn" class="btn btn-sm btn-outline-primary ms-2">Retry</button>';
-                    const retryBtn = document.getElementById('camRetryBtn');
-                    if (retryBtn) retryBtn.addEventListener('click', setupCamera);
-                    updateStartButtonState();
+                } catch (camErr) {
+                    let msg = 'Camera access is required for this exam.';
+                    if (camErr && camErr.name === 'NotAllowedError') {
+                        msg = 'Camera permission was denied. Click the camera icon in the address bar (or check System Settings &gt; Privacy &amp; Security &gt; Camera on Mac) to allow this site, then retry.';
+                    } else if (camErr && camErr.name === 'NotFoundError') {
+                        msg = 'No camera was found on this device. A working camera is required for this exam.';
+                    } else if (camErr && camErr.name === 'NotReadableError') {
+                        msg = 'Your camera is already in use by another app. Close any other app using the camera and retry.';
+                    } else if (camErr && camErr.message) {
+                        msg = 'Camera error (' + camErr.name + '): ' + camErr.message;
+                    }
+                    showCamError(msg);
                 }
             }
             setupCamera();
