@@ -267,6 +267,18 @@ a:hover {
   color: #a777e3;
 }
 
+/* Links sitting directly on the page gradient (not inside a .card) need stronger
+   contrast than the default link color provides - e.g. login/register/forgot-password. */
+.auth-link {
+  color: #2d2d47 !important;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.auth-link:hover {
+  color: #6e8efb !important;
+}
+
 h1, h2, h3, h4, h5 {
   font-weight: 600;
   color: #2d2d47;
