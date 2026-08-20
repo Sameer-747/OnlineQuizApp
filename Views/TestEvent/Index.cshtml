@@ -137,8 +137,10 @@ else
                 });
             });
 
-            deleteEventForm.addEventListener('submit', function (e) {
-                e.preventDefault();
+            // Plain native form submission (no fetch/AJAX) - the browser handles the POST and
+            // redirect itself, exactly like every other delete/save form in this app. We only
+            // add non-blocking visual feedback here; nothing here can stop the actual submit.
+            deleteEventForm.addEventListener('submit', function () {
                 if (deleteEventForm.dataset.pending === 'true') return;
                 deleteEventForm.dataset.pending = 'true';
 
@@ -147,37 +149,7 @@ else
                 deleteEventSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
 
                 deleteEventStatus.classList.remove('d-none', 'text-danger');
-                deleteEventStatus.textContent = 'Working on it - this can take up to a minute if the server was idle.';
-
-                var slowNoticeTimer = setTimeout(function () {
-                    deleteEventStatus.textContent = 'Still working... the free-tier server can be slow to wake up. Please keep waiting.';
-                }, 8000);
-
-                var token = deleteEventForm.querySelector('input[name="__RequestVerificationToken"]').value;
-
-                fetch(deleteEventForm.action, {
-                    method: 'POST',
-                    headers: { 'RequestVerificationToken': token },
-                    body: new FormData(deleteEventForm)
-                })
-                    .then(function (response) {
-                        clearTimeout(slowNoticeTimer);
-                        if (response.ok || response.redirected) {
-                            deleteEventStatus.textContent = 'Done. Refreshing...';
-                            window.location.href = response.url || window.location.href;
-                        } else {
-                            throw new Error('Server responded with status ' + response.status);
-                        }
-                    })
-                    .catch(function (err) {
-                        clearTimeout(slowNoticeTimer);
-                        deleteEventForm.dataset.pending = 'false';
-                        deleteEventSubmitBtn.disabled = false;
-                        deleteEventCancelBtn.disabled = false;
-                        deleteEventSubmitBtn.innerHTML = '<i class="ti ti-trash me-1"></i>Delete';
-                        deleteEventStatus.classList.add('text-danger');
-                        deleteEventStatus.textContent = 'Something went wrong (' + err.message + '). Please try again.';
-                    });
+                deleteEventStatus.textContent = 'Working on it - this can take up to a minute if the server was idle. Please wait for the page to reload.';
             });
         </script>
     }
