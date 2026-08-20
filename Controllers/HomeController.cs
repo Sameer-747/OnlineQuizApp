@@ -19,7 +19,12 @@ namespace OnlineQuizApp.Controllers
 
         public async Task<IActionResult> Index()
         {
-            var query = _context.Categories.Include(c => c.Quizzes).AsQueryable();
+            // Test Event quizzes live under "My Tests" (with their own scheduling/assignment
+            // rules), not the regular browsing flow - only count/show quizzes here that a
+            // student could actually open from this page.
+            var query = _context.Categories
+                .Include(c => c.Quizzes.Where(q => q.TestEventId == null))
+                .AsQueryable();
 
             bool isSuperAdmin = User.Identity?.Name?.ToLower() == "admin@quizapp.com";
 
@@ -39,7 +44,9 @@ namespace OnlineQuizApp.Controllers
             }
             // Super admin (isSuperAdmin == true) sees everything - no filter applied.
 
-            var categories = await query.ToListAsync();
+            var categories = (await query.ToListAsync())
+                .Where(c => c.Quizzes.Count > 0)
+                .ToList();
 
             return View(categories);
         }
