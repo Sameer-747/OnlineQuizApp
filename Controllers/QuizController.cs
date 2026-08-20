@@ -200,6 +200,7 @@ namespace OnlineQuizApp.Controllers
                 QuizId = quiz.Id,
                 Title = quiz.Title,
                 DurationMinutes = quiz.DurationMinutes,
+                IsTestEvent = quiz.TestEventId != null,
                 Questions = quiz.Questions.Select(q => new QuestionPlayViewModel
                 {
                     QuestionId = q.Id,
@@ -260,7 +261,11 @@ namespace OnlineQuizApp.Controllers
                 QuizId = quiz.Id,
                 StartedAt = DateTime.UtcNow,
                 CompletedAt = DateTime.UtcNow,
-                TotalQuestions = quiz.Questions.Count
+                TotalQuestions = quiz.Questions.Count,
+                // Only meaningful for proctored Test Event quizzes; stays 0/false otherwise
+                // since regular quizzes never post these fields.
+                TabSwitchCount = submission.TabSwitchCount,
+                AutoSubmitted = submission.AutoSubmitted
             };
 
             int score = 0;
@@ -326,6 +331,8 @@ namespace OnlineQuizApp.Controllers
                 TotalQuestions = attempt.TotalQuestions,
                 CompletedAt = TimeZoneInfo.ConvertTimeFromUtc(
                     DateTime.SpecifyKind(attempt.CompletedAt ?? DateTime.UtcNow, DateTimeKind.Utc), ist),
+                AutoSubmitted = attempt.AutoSubmitted,
+                TabSwitchCount = attempt.TabSwitchCount,
                 QuestionResults = attempt.Answers.Select(ans => new QuestionResultViewModel
                 {
                     QuestionText = ans.Question?.Text ?? string.Empty,

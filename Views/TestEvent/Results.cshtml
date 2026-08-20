@@ -48,6 +48,7 @@ else
                     <th>Score</th>
                     <th>Percentage</th>
                     <th>Status</th>
+                    <th>Integrity</th>
                     <th>Completed At</th>
                 </tr>
             </thead>
@@ -105,6 +106,28 @@ else
                             else
                             {
                                 <span class="badge bg-secondary">Not Attempted</span>
+                            }
+                        </td>
+                        <td>
+                            @if (row.Attempted && row.AutoSubmitted)
+                            {
+                                <span class="badge bg-danger" title="Left the exam window/full-screen and didn't return in time">
+                                    <i class="ti ti-alert-triangle"></i> Auto-submitted (@row.TabSwitchCount)
+                                </span>
+                            }
+                            else if (row.Attempted && row.TabSwitchCount > 0)
+                            {
+                                <span class="badge bg-warning text-dark" title="Left the exam window/full-screen but returned in time">
+                                    @row.TabSwitchCount warning@(row.TabSwitchCount == 1 ? "" : "s")
+                                </span>
+                            }
+                            else if (row.Attempted)
+                            {
+                                <span class="badge bg-light text-muted border">Clean</span>
+                            }
+                            else
+                            {
+                                <span>—</span>
                             }
                         </td>
                         <td>@(completedIst?.ToString("dd MMM yyyy, hh:mm tt") ?? "—")</td>

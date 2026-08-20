@@ -13,5 +13,7 @@ namespace OnlineQuizApp.ViewModels
         public double Percentage { get; set; }
         public int? Rank { get; set; }
         public DateTime? CompletedAt { get; set; }
+        public bool AutoSubmitted { get; set; }
+        public int TabSwitchCount { get; set; }
     }
 }

@@ -312,7 +312,9 @@ namespace OnlineQuizApp.Controllers
                     TotalQuestions = attempt?.TotalQuestions ?? 0,
                     Percentage = attempt != null && attempt.TotalQuestions > 0
                         ? (attempt.Score * 100.0 / attempt.TotalQuestions) : 0,
-                    CompletedAt = attempt?.CompletedAt
+                    CompletedAt = attempt?.CompletedAt,
+                    AutoSubmitted = attempt?.AutoSubmitted ?? false,
+                    TabSwitchCount = attempt?.TabSwitchCount ?? 0
                 });
             }
 

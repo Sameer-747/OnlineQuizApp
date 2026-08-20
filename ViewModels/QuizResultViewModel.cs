@@ -7,6 +7,8 @@ namespace OnlineQuizApp.ViewModels
         public int Score { get; set; }
         public int TotalQuestions { get; set; }
         public DateTime CompletedAt { get; set; }
+        public bool AutoSubmitted { get; set; }
+        public int TabSwitchCount { get; set; }
         public List<QuestionResultViewModel> QuestionResults { get; set; } = new();
     }
 
@@ -23,6 +25,9 @@ namespace OnlineQuizApp.ViewModels
     {
         public int QuizId { get; set; }
         public List<QuestionAnswerSubmission> Answers { get; set; } = new();
+        // Populated client-side for proctored Test Event exams only.
+        public int TabSwitchCount { get; set; }
+        public bool AutoSubmitted { get; set; }
     }
 
     public class QuestionAnswerSubmission

@@ -9,34 +9,73 @@
     <div class="badge bg-warning text-dark fs-6" id="timer">--:--</div>
 </div>
 
-<form asp-action="Submit" method="post" id="quizForm">
-    <input type="hidden" name="QuizId" value="@Model.QuizId" />
-
-    @for (int i = 0; i < Model.Questions.Count; i++)
-    {
-        var q = Model.Questions[i];
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Q@(i + 1). @q.Text</h5>
-                <input type="hidden" name="Answers[@i].QuestionId" value="@q.QuestionId" />
-                @foreach (var opt in q.Options)
-                {
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio"
-                               name="Answers[@i].SelectedOptionId"
-                               id="opt_@opt.OptionId"
-                               value="@opt.OptionId" />
-                        <label class="form-check-label" for="opt_@opt.OptionId">
-                            @opt.Text
-                        </label>
-                    </div>
-                }
-            </div>
+@if (Model.IsTestEvent)
+{
+    <div id="examWarningBanner" class="alert alert-danger d-none align-items-center justify-content-between mb-3" style="position: sticky; top: 8px; z-index: 1050; cursor: pointer;">
+        <div>
+            <i class="ti ti-alert-triangle me-1"></i>
+            <span id="examWarningText">You left the exam.</span>
+            <strong>Click here to return to full-screen.</strong>
         </div>
-    }
+    </div>
 
-    <button type="submit" class="btn btn-success">Submit Quiz</button>
-</form>
+    <div id="examInstructions" class="card mb-4" style="border: 2px solid #a777e3;">
+        <div class="card-body">
+            <h4 class="card-title mb-3"><i class="ti ti-shield-check me-1"></i> Exam Instructions</h4>
+            <ul class="mb-3">
+                <li>This is a proctored test. Once you start, the screen will switch to full-screen mode.</li>
+                <li>Do not switch tabs, minimize the window, or exit full-screen. Doing so shows a warning countdown &mdash; if you don't return in time, your exam is <strong>auto-submitted</strong> with whatever answers you've selected so far.</li>
+                <li>The timer keeps running no matter what you do &mdash; it will not pause.</li>
+                <li>You get one attempt. Once submitted (manually or automatically), it cannot be retaken.</li>
+            </ul>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="ackCheckbox">
+                <label class="form-check-label" for="ackCheckbox">
+                    I have read and understood the instructions above.
+                </label>
+            </div>
+            <button type="button" id="startExamBtn" class="btn btn-primary" disabled>
+                <i class="ti ti-player-play me-1"></i> Start Exam
+            </button>
+        </div>
+    </div>
+}
+
+<div id="quizContent" class="@(Model.IsTestEvent ? "d-none" : "")">
+    <form asp-action="Submit" method="post" id="quizForm">
+        <input type="hidden" name="QuizId" value="@Model.QuizId" />
+        @if (Model.IsTestEvent)
+        {
+            <input type="hidden" name="TabSwitchCount" id="tabSwitchCountField" value="0" />
+            <input type="hidden" name="AutoSubmitted" id="autoSubmittedField" value="false" />
+        }
+
+        @for (int i = 0; i < Model.Questions.Count; i++)
+        {
+            var q = Model.Questions[i];
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Q@(i + 1). @q.Text</h5>
+                    <input type="hidden" name="Answers[@i].QuestionId" value="@q.QuestionId" />
+                    @foreach (var opt in q.Options)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio"
+                                   name="Answers[@i].SelectedOptionId"
+                                   id="opt_@opt.OptionId"
+                                   value="@opt.OptionId" />
+                            <label class="form-check-label" for="opt_@opt.OptionId">
+                                @opt.Text
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <button type="submit" class="btn btn-success">Submit Quiz</button>
+    </form>
+</div>
 
 @section Scripts {
     <script>
@@ -44,7 +83,9 @@
             let duration = @Model.DurationMinutes * 60; // seconds
             const timerEl = document.getElementById('timer');
             const form = document.getElementById('quizForm');
+            const isTestEvent = @(Model.IsTestEvent ? "true" : "false");
             let isSubmitting = false;
+            let tabSwitchCount = 0;
 
             function updateTimer() {
                 const minutes = Math.floor(duration / 60);
@@ -60,8 +101,8 @@
                 duration--;
             }
 
-            updateTimer();
-            const interval = setInterval(updateTimer, 1000);
+            let interval = null;
+            let started = !isTestEvent;
 
             // Warn before leaving the page (back button, refresh, close tab)
             window.addEventListener('beforeunload', function (e) {
@@ -71,9 +112,131 @@
                 return e.returnValue;
             });
 
-            // Don't warn when the form is actually being submitted
+            // Record how many times the exam window was left, on every submission path
+            // (manual submit, time-up auto-submit, or the integrity auto-submit below).
             form.addEventListener('submit', function () {
                 isSubmitting = true;
+                const field = document.getElementById('tabSwitchCountField');
+                if (field) field.value = tabSwitchCount;
+            });
+
+            if (!isTestEvent) {
+                updateTimer();
+                interval = setInterval(updateTimer, 1000);
+                return; // regular quizzes: no fullscreen lockdown, no tab-switch monitoring
+            }
+
+            // ---- Proctored Test Event flow below ----
+
+            const ackCheckbox = document.getElementById('ackCheckbox');
+            const startBtn = document.getElementById('startExamBtn');
+            const instructions = document.getElementById('examInstructions');
+            const quizContent = document.getElementById('quizContent');
+            const warningBanner = document.getElementById('examWarningBanner');
+            const warningText = document.getElementById('examWarningText');
+
+            ackCheckbox.addEventListener('change', function () {
+                startBtn.disabled = !ackCheckbox.checked;
+            });
+
+            const GRACE_SECONDS = 10;
+            let graceTimer = null;
+            let graceRemaining = 0;
+            let hadFullscreen = false;
+
+            function isFullscreenActive() {
+                return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+            }
+
+            function requestFullscreen() {
+                const el = document.documentElement;
+                const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+                if (req) {
+                    Promise.resolve(req.call(el)).catch(function () {
+                        // Some browsers/environments block full-screen; tab-switch detection
+                        // still covers most of the exam-integrity requirement on its own.
+                    });
+                }
+            }
+
+            function updateWarningText(reason) {
+                warningText.textContent = 'You left the exam (' + reason + '). Return within ' + graceRemaining + 's or it will be auto-submitted with your current answers.';
+            }
+
+            function startGrace(reason) {
+                if (graceTimer || isSubmitting) return;
+                tabSwitchCount++;
+                graceRemaining = GRACE_SECONDS;
+                warningBanner.classList.remove('d-none');
+                warningBanner.classList.add('d-flex');
+                updateWarningText(reason);
+                graceTimer = setInterval(function () {
+                    graceRemaining--;
+                    updateWarningText(reason);
+                    if (graceRemaining <= 0) {
+                        clearInterval(graceTimer);
+                        graceTimer = null;
+                        autoSubmit();
+                    }
+                }, 1000);
+            }
+
+            function maybeCancelGrace() {
+                if (!document.hidden && (isFullscreenActive() || !hadFullscreen) && graceTimer) {
+                    clearInterval(graceTimer);
+                    graceTimer = null;
+                    warningBanner.classList.add('d-none');
+                    warningBanner.classList.remove('d-flex');
+                }
+            }
+
+            function autoSubmit() {
+                if (isSubmitting) return;
+                isSubmitting = true;
+                document.getElementById('autoSubmittedField').value = 'true';
+                document.getElementById('tabSwitchCountField').value = tabSwitchCount;
+                form.submit();
+            }
+
+            document.addEventListener('visibilitychange', function () {
+                if (!started || isSubmitting) return;
+                if (document.hidden) {
+                    startGrace('switched tabs');
+                } else {
+                    maybeCancelGrace();
+                }
+            });
+
+            function onFullscreenChange() {
+                if (!started || isSubmitting) return;
+                if (isFullscreenActive()) {
+                    hadFullscreen = true;
+                    maybeCancelGrace();
+                } else if (hadFullscreen) {
+                    startGrace('exited full-screen');
+                }
+            }
+            document.addEventListener('fullscreenchange', onFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+            document.addEventListener('MSFullscreenChange', onFullscreenChange);
+
+            // Browsers require a fresh click to re-enter full-screen (it can't be done
+            // automatically just because the student switched back to this tab).
+            warningBanner.addEventListener('click', function () {
+                if (!document.hidden) {
+                    requestFullscreen();
+                    maybeCancelGrace();
+                }
+            });
+
+            startBtn.addEventListener('click', function () {
+                if (!ackCheckbox.checked) return;
+                instructions.classList.add('d-none');
+                quizContent.classList.remove('d-none');
+                started = true;
+                requestFullscreen();
+                updateTimer();
+                interval = setInterval(updateTimer, 1000);
             });
         })();
     </script>

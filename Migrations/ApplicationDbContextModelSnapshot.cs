@@ -361,6 +361,9 @@ namespace OnlineQuizApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AutoSubmitted")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -372,6 +375,9 @@ namespace OnlineQuizApp.Migrations
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TabSwitchCount")
+                        .HasColumnType("integer");
 
                     b.Property<int>("TotalQuestions")
                         .HasColumnType("integer");
