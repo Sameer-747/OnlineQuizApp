@@ -29,7 +29,7 @@
             <ul class="mb-3">
                 <li>This is a proctored test. Once you start, the screen will switch to full-screen mode.</li>
                 <li>Do not switch tabs, open another app, or exit full-screen. You get <strong>2 warnings</strong> &mdash; the <strong>3rd time</strong> you leave the exam, it is <strong>auto-submitted immediately</strong> with whatever answers you've selected so far.</li>
-                <li>Your camera stays on for the whole exam. If your face isn't visible, more than one face appears, or a phone/device is seen in frame for a few seconds straight, your exam is <strong>auto-submitted immediately &mdash; no warning</strong>.</li>
+                <li>Your camera stays on for the whole exam. If your face isn't visible or more than one face appears for a few seconds straight, your exam is <strong>auto-submitted immediately &mdash; no warning</strong>.</li>
                 <li>The timer keeps running no matter what you do &mdash; it will not pause.</li>
                 <li>You get one attempt. Once submitted (manually or automatically), it cannot be retaken.</li>
             </ul>
@@ -97,11 +97,6 @@
     @if (Model.IsTestEvent)
     {
         <script src="https://cdn.jsdelivr.net/npm/face-api.js@@0.22.2/dist/face-api.min.js"></script>
-        <!-- Unpinned, matching TensorFlow's own documented script-tag example exactly - coco-ssd's
-             browser build has historically been sensitive to being paired with an exact/mismatched
-             tfjs version, so we let jsdelivr resolve both to their latest mutually-tested release. -->
-        <script src="https://cdn.jsdelivr.net/npm/@@tensorflow/tfjs/dist/tf.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/@@tensorflow-models/coco-ssd/dist/coco-ssd.min.js"></script>
     }
     <script>
         (function () {
@@ -273,18 +268,18 @@
                 requestFullscreen();
             });
 
-            // ---- Camera-based proctoring: no face / multiple faces / phone in frame ----
+            // ---- Camera-based proctoring: no face / multiple faces in frame ----
+            // (Phone/device detection via coco-ssd + tfjs was dropped - its browser build
+            // proved too fragile in practice across CDN/version combos to rely on.)
 
             // The npm package doesn't publish model weight files, only the GitHub repo does,
             // so these load from jsdelivr's GitHub CDN instead of the npm one.
             const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@@master/weights';
             const CAM_POLL_MS = 2000;
             const CAM_STREAK_THRESHOLD = 3; // ~6s sustained at a 2s poll interval, no warning - instant submit
-            let cocoModel = null;
             let camCheckInterval = null;
             let noFaceStreak = 0;
             let multiFaceStreak = 0;
-            let phoneStreak = 0;
 
             async function setupCamera() {
                 function showCamError(message) {
@@ -306,14 +301,6 @@
                     await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
                 } catch (faceErr) {
                     showCamError('Could not load the face-detection model (' + (faceErr && faceErr.message ? faceErr.message : String(faceErr)) + '). Check your internet connection and retry.');
-                    return;
-                }
-
-                try {
-                    camStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Loading phone-detection model&hellip;';
-                    cocoModel = await cocoSsd.load();
-                } catch (phoneErr) {
-                    showCamError('Could not load the phone-detection model (' + (phoneErr && phoneErr.message ? phoneErr.message : String(phoneErr)) + '). Check your internet connection and retry.');
                     return;
                 }
 
@@ -368,25 +355,17 @@
                     ctx.drawImage(camPreview, 0, 0, camCanvas.width, camCanvas.height);
 
                     const faces = await faceapi.detectAllFaces(camCanvas, new faceapi.TinyFaceDetectorOptions());
-                    let phoneDetected = false;
-                    if (cocoModel) {
-                        const predictions = await cocoModel.detect(camCanvas);
-                        phoneDetected = predictions.some(function (p) { return p.class === 'cell phone' && p.score > 0.5; });
-                    }
 
                     let issue = null;
                     if (faces.length === 0) issue = 'noFace';
                     else if (faces.length > 1) issue = 'multiFace';
-                    else if (phoneDetected) issue = 'phone';
 
                     noFaceStreak = issue === 'noFace' ? noFaceStreak + 1 : 0;
                     multiFaceStreak = issue === 'multiFace' ? multiFaceStreak + 1 : 0;
-                    phoneStreak = issue === 'phone' ? phoneStreak + 1 : 0;
 
                     let triggered = null;
                     if (noFaceStreak >= CAM_STREAK_THRESHOLD) triggered = 'No face detected in camera for several seconds.';
                     else if (multiFaceStreak >= CAM_STREAK_THRESHOLD) triggered = 'Multiple faces detected in camera.';
-                    else if (phoneStreak >= CAM_STREAK_THRESHOLD) triggered = 'A phone or second device was detected in camera view.';
 
                     if (triggered) {
                         const dataUrl = camCanvas.toDataURL('image/jpeg', 0.6);
