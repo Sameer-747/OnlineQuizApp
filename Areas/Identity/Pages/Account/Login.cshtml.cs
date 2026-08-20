@@ -123,7 +123,9 @@ namespace OnlineQuizApp.Areas.Identity.Pages.Account
                 usernameToSignIn = studentUser.UserName!;
             }
 
-            var result = await _signInManager.PasswordSignInAsync(usernameToSignIn, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+            // Lockout enabled: 5 failed attempts locks the account for 5 minutes (ASP.NET Identity
+            // defaults), which blocks unlimited password-guessing against any account.
+            var result = await _signInManager.PasswordSignInAsync(usernameToSignIn, Input.Password, Input.RememberMe, lockoutOnFailure: true);
 
             if (result.Succeeded)
                 return LocalRedirect(returnUrl);
