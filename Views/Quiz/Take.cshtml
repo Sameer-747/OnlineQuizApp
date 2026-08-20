@@ -299,13 +299,18 @@
                 }
 
                 try {
-                    camStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Loading AI monitoring models&hellip;';
-                    await Promise.all([
-                        faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
-                        cocoSsd.load().then(function (m) { cocoModel = m; })
-                    ]);
-                } catch (modelErr) {
-                    showCamError('Could not load the AI monitoring models (' + (modelErr && modelErr.message ? modelErr.message : 'network error') + '). Check your internet connection and retry.');
+                    camStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Loading face-detection model&hellip;';
+                    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+                } catch (faceErr) {
+                    showCamError('Could not load the face-detection model (' + (faceErr && faceErr.message ? faceErr.message : String(faceErr)) + '). Check your internet connection and retry.');
+                    return;
+                }
+
+                try {
+                    camStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Loading phone-detection model&hellip;';
+                    cocoModel = await cocoSsd.load();
+                } catch (phoneErr) {
+                    showCamError('Could not load the phone-detection model (' + (phoneErr && phoneErr.message ? phoneErr.message : String(phoneErr)) + '). Check your internet connection and retry.');
                     return;
                 }
 
