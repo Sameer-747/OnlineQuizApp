@@ -61,16 +61,21 @@ namespace OnlineQuizApp.Controllers
                 .Include(te => te.Section)
                 .Include(te => te.Quizzes)
                 .Include(te => te.Assignments)
+                .Include(te => te.SectionLanguages).ThenInclude(sl => sl.Section)
                 .AsQueryable();
 
             if (!isSuper)
             {
-                query = query.Where(te => te.SectionId == sectionId);
+                // Section admins see their own single-section events, plus any global
+                // (super-admin, multi-section) event that includes their section.
+                query = query.Where(te => te.SectionId == sectionId ||
+                    (te.SectionId == null && te.SectionLanguages.Any(sl => sl.SectionId == sectionId)));
                 if (sectionId == null)
                     TempData["Error"] = "You are not yet assigned to a section. Ask the super admin to assign you one before creating test events.";
             }
 
             var events = await query.OrderByDescending(te => te.CreatedAt).ToListAsync();
+            ViewBag.IsSuper = isSuper;
             return View(events);
         }
 
@@ -266,6 +271,197 @@ namespace OnlineQuizApp.Controllers
             });
         }
 
+        // POST: /Admin/TestEvents/CreateGlobalAndPost  (super admin only, AJAX) - creates ONE
+        // event spanning several sections at once, where each section is assigned exactly one
+        // language (not a random per-student pick). Generates one quiz per distinct language
+        // (shared across sections that picked the same language) and assigns every current
+        // student in each chosen section to that section's quiz.
+        [HttpPost("CreateGlobalAndPost")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateGlobalAndPost([FromBody] CreateGlobalTestEventRequest request)
+        {
+            if (!IsSuperAdmin())
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(request.Title))
+                return BadRequest(new { error = "Title is required." });
+
+            var entries = (request.SectionLanguages ?? new List<SectionLanguageEntry>())
+                .Where(e => e.SectionId > 0 && !string.IsNullOrWhiteSpace(e.Language))
+                .GroupBy(e => e.SectionId)
+                .Select(g => g.First()) // one language per section - ignore accidental duplicates
+                .ToList();
+
+            if (entries.Count == 0)
+                return BadRequest(new { error = "Choose at least one section and its language." });
+
+            var sectionIds = entries.Select(e => e.SectionId).ToList();
+            var validSectionIds = (await _context.Sections
+                .Where(s => sectionIds.Contains(s.Id))
+                .Select(s => s.Id)
+                .ToListAsync()).ToHashSet();
+
+            entries = entries.Where(e => validSectionIds.Contains(e.SectionId)).ToList();
+            if (entries.Count == 0)
+                return BadRequest(new { error = "None of the selected sections are valid." });
+
+            var apiKey = _configuration["Groq:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+                return StatusCode(500, new { error = "API key not configured. Add Groq:ApiKey to appsettings.json." });
+
+            var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+
+            if (!DateTime.TryParse(request.StartTime, out var startLocal) ||
+                !DateTime.TryParse(request.EndTime, out var endLocal))
+            {
+                return BadRequest(new { error = "Invalid start/end time." });
+            }
+
+            var startUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(startLocal, DateTimeKind.Unspecified), ist);
+            var endUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(endLocal, DateTimeKind.Unspecified), ist);
+
+            if (endUtc <= startUtc)
+                return BadRequest(new { error = "End time must be after start time." });
+
+            var durationMinutes = request.DurationMinutes is >= 1 and <= 240 ? request.DurationMinutes : 15;
+            var questionCount = request.QuestionCount is >= 1 and <= 30 ? request.QuestionCount : 10;
+            var difficulty = string.IsNullOrWhiteSpace(request.Difficulty) ? "medium" : request.Difficulty;
+
+            // Global quizzes aren't tied to one section, so use a shared, section-less category.
+            var category = await _context.Categories
+                .FirstOrDefaultAsync(c => c.SectionId == null && c.Name == AiCategoryName);
+            if (category == null)
+            {
+                category = new Category { Name = AiCategoryName, SectionId = null };
+                _context.Categories.Add(category);
+                await _context.SaveChangesAsync();
+            }
+
+            var testEvent = new TestEvent
+            {
+                Title = request.Title.Trim(),
+                SectionId = null,
+                StartTime = startUtc,
+                EndTime = endUtc,
+                CreatedByUserId = _userManager.GetUserId(User),
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.TestEvents.Add(testEvent);
+            await _context.SaveChangesAsync();
+
+            // One quiz per distinct language - sections that picked the same language share it.
+            var distinctLanguages = entries
+                .Select(e => e.Language.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var quizByLanguage = new Dictionary<string, Quiz>(StringComparer.OrdinalIgnoreCase);
+            var failedLanguages = new List<string>();
+            bool first = true;
+
+            foreach (var language in distinctLanguages)
+            {
+                if (!first) await Task.Delay(3000);
+                first = false;
+
+                var generated = await GenerateQuestionsForLanguageAsync(language, questionCount, difficulty);
+                if (generated == null || generated.Count == 0)
+                {
+                    failedLanguages.Add(language);
+                    continue;
+                }
+
+                var quiz = new Quiz
+                {
+                    Title = language,
+                    CategoryId = category.Id,
+                    SectionId = null,
+                    DurationMinutes = durationMinutes,
+                    TestEventId = testEvent.Id,
+                    CreatedByUserId = _userManager.GetUserId(User)
+                };
+
+                foreach (var q in generated)
+                {
+                    if (string.IsNullOrWhiteSpace(q.Text) || q.Options == null || q.Options.Count < 2) continue;
+
+                    var question = new Question { Text = q.Text.Trim() };
+                    for (int i = 0; i < q.Options.Count; i++)
+                    {
+                        question.Options.Add(new Option
+                        {
+                            Text = q.Options[i]?.Trim() ?? string.Empty,
+                            IsCorrect = i == q.CorrectIndex
+                        });
+                    }
+                    quiz.Questions.Add(question);
+                }
+
+                if (quiz.Questions.Count == 0)
+                {
+                    failedLanguages.Add(language);
+                    continue;
+                }
+
+                _context.Quizzes.Add(quiz);
+                quizByLanguage[language] = quiz;
+            }
+
+            if (quizByLanguage.Count == 0)
+            {
+                _context.TestEvents.Remove(testEvent);
+                await _context.SaveChangesAsync();
+                return StatusCode(500, new { error = "AI generation failed for every language. Please try again." });
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Only keep section entries whose language actually generated successfully.
+            var usableEntries = entries.Where(e => quizByLanguage.ContainsKey(e.Language.Trim())).ToList();
+            var skippedSections = entries.Except(usableEntries)
+                .Select(e => e.SectionId)
+                .ToList();
+
+            int totalStudentsAssigned = 0;
+            foreach (var entry in usableEntries)
+            {
+                var quiz = quizByLanguage[entry.Language.Trim()];
+
+                _context.TestEventSectionLanguages.Add(new TestEventSectionLanguage
+                {
+                    TestEventId = testEvent.Id,
+                    SectionId = entry.SectionId,
+                    Language = entry.Language.Trim(),
+                    QuizId = quiz.Id
+                });
+
+                var students = await GetStudentsInSectionAsync(entry.SectionId);
+                foreach (var student in students)
+                {
+                    _context.TestEventAssignments.Add(new TestEventAssignment
+                    {
+                        TestEventId = testEvent.Id,
+                        UserId = student.Id,
+                        QuizId = quiz.Id
+                    });
+                }
+                totalStudentsAssigned += students.Count;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                eventId = testEvent.Id,
+                languagesGenerated = quizByLanguage.Keys.ToList(),
+                failedLanguages,
+                sectionsAssigned = usableEntries.Count,
+                skippedSections,
+                studentsAssigned = totalStudentsAssigned
+            });
+        }
+
         // GET: /Admin/TestEvents/Results/5
         [HttpGet("Results/{id:int}")]
         public async Task<IActionResult> Results(int id)
@@ -275,16 +471,35 @@ namespace OnlineQuizApp.Controllers
             var testEvent = await _context.TestEvents
                 .Include(te => te.Section)
                 .Include(te => te.Quizzes)
+                .Include(te => te.SectionLanguages)
                 .FirstOrDefaultAsync(te => te.Id == id);
 
             if (testEvent == null) return NotFound();
-            if (!isSuper && testEvent.SectionId != sectionId) return Forbid();
+
+            if (!isSuper)
+            {
+                if (testEvent.SectionId != null)
+                {
+                    if (testEvent.SectionId != sectionId) return Forbid();
+                }
+                else if (!testEvent.SectionLanguages.Any(sl => sl.SectionId == sectionId))
+                {
+                    // Global event that doesn't include this admin's section.
+                    return Forbid();
+                }
+            }
 
             var assignments = await _context.TestEventAssignments
-                .Include(a => a.User)
+                .Include(a => a.User).ThenInclude(u => u!.Section)
                 .Include(a => a.Quiz)
                 .Where(a => a.TestEventId == id)
                 .ToListAsync();
+
+            // A section admin viewing a global event only sees their own section's students.
+            if (!isSuper && testEvent.SectionId == null)
+            {
+                assignments = assignments.Where(a => a.User?.SectionId == sectionId).ToList();
+            }
 
             var quizIds = testEvent.Quizzes.Select(q => q.Id).ToList();
             var userIds = assignments.Select(a => a.UserId).ToList();
@@ -315,6 +530,7 @@ namespace OnlineQuizApp.Controllers
                 {
                     Language = assignment.Quiz?.Title ?? "—",
                     QuizId = assignment.QuizId,
+                    SectionName = testEvent.SectionId == null ? (assignment.User?.Section?.Name ?? "—") : null,
                     StudentName = assignment.User?.FullName ?? assignment.User?.Email ?? "—",
                     RollNumber = assignment.User?.RollNumber,
                     Attempted = attempt != null,
@@ -365,7 +581,19 @@ namespace OnlineQuizApp.Controllers
                     .Where(q => q.Id == snapshot.QuizId)
                     .Select(q => q.SectionId)
                     .FirstOrDefaultAsync();
-                if (quizSectionId != sectionId) return Forbid();
+
+                if (quizSectionId != null)
+                {
+                    if (quizSectionId != sectionId) return Forbid();
+                }
+                else
+                {
+                    // Shared global quiz - allow only if the admin's own section was assigned
+                    // this quiz within some test event, and the snapshot's user is in that section.
+                    var userInSection = await _context.Users
+                        .AnyAsync(u => u.Id == snapshot.UserId && u.SectionId == sectionId);
+                    if (!userInSection) return Forbid();
+                }
             }
 
             var data = snapshot.ImageData;
@@ -398,7 +626,14 @@ namespace OnlineQuizApp.Controllers
                 .FirstOrDefaultAsync(te => te.Id == id);
 
             if (testEvent == null) return NotFound();
-            if (!isSuper && testEvent.SectionId != sectionId) return Forbid();
+
+            if (!isSuper)
+            {
+                // Section admins can only delete their own single-section events. A global
+                // (multi-section) event can only be deleted by the super admin, since removing
+                // it affects other sections too.
+                if (testEvent.SectionId == null || testEvent.SectionId != sectionId) return Forbid();
+            }
 
             var quizIds = testEvent.Quizzes.Select(q => q.Id).ToList();
             var hasAttempts = quizIds.Count > 0 &&
@@ -587,6 +822,23 @@ Rules:
         public int QuestionCount { get; set; } = 10;
         public string Difficulty { get; set; } = "medium";
         public List<string> Languages { get; set; } = new();
+    }
+
+    public class CreateGlobalTestEventRequest
+    {
+        public string Title { get; set; } = string.Empty;
+        public string StartTime { get; set; } = string.Empty;
+        public string EndTime { get; set; } = string.Empty;
+        public int DurationMinutes { get; set; } = 15;
+        public int QuestionCount { get; set; } = 10;
+        public string Difficulty { get; set; } = "medium";
+        public List<SectionLanguageEntry> SectionLanguages { get; set; } = new();
+    }
+
+    public class SectionLanguageEntry
+    {
+        public int SectionId { get; set; }
+        public string Language { get; set; } = string.Empty;
     }
 
     public class GeneratedAiQuestion

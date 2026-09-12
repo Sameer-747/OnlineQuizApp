@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Test Events";
     var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+    bool isSuper = ViewBag.IsSuper ?? false;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -61,7 +62,16 @@ else
 
                 <tr>
                     <td>@te.Title</td>
-                    <td>@te.Section?.Name</td>
+                    <td>
+                        @if (te.SectionId == null)
+                        {
+                            <span class="badge bg-info text-dark"><i class="ti ti-world"></i> All Sections (@te.SectionLanguages.Count)</span>
+                        }
+                        else
+                        {
+                            @te.Section?.Name
+                        }
+                    </td>
                     <td>@te.Quizzes.Count</td>
                     <td>@te.Assignments.Count</td>
                     <td>
@@ -70,11 +80,14 @@ else
                     <td><span class="badge @badgeClass">@te.Status</span></td>
                     <td>
                         <a asp-action="Results" asp-route-id="@te.Id" class="btn btn-sm btn-outline-primary">Results</a>
-                        <form asp-action="Delete" asp-route-id="@te.Id" method="post" class="d-inline"
-                              onsubmit="return confirm('Delete &quot;@te.Title&quot; and all its language quizzes? @(te.Status == "Expired" ? "This also permanently deletes any student attempts already recorded for it. " : "")This cannot be undone.');">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                        </form>
+                        @if (isSuper || te.SectionId != null)
+                        {
+                            <form asp-action="Delete" asp-route-id="@te.Id" method="post" class="d-inline"
+                                  onsubmit="return confirm('Delete &quot;@te.Title&quot; and all its language quizzes? @(te.Status == "Expired" ? "This also permanently deletes any student attempts already recorded for it. " : "")This cannot be undone.');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        }
                     </td>
                 </tr>
             }

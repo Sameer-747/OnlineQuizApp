@@ -5,6 +5,8 @@ namespace OnlineQuizApp.ViewModels
     {
         public string Language { get; set; } = string.Empty;
         public int QuizId { get; set; }
+        // Only meaningful for global (multi-section) events; null for regular single-section events.
+        public string? SectionName { get; set; }
         public string StudentName { get; set; } = string.Empty;
         public string? RollNumber { get; set; }
         public bool Attempted { get; set; }

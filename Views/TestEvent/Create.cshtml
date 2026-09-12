@@ -45,6 +45,7 @@ function TestEventApp({ isSuper, sections }) {
     const now = new Date();
     const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
 
+    const [scope, setScope] = useState('single'); // 'single' or 'global' (super admin only)
     const [title, setTitle] = useState('');
     const [sectionId, setSectionId] = useState(sections[0]?.id || '');
     const [startDate, setStartDate] = useState(toDateInput(now));
@@ -56,6 +57,9 @@ function TestEventApp({ isSuper, sections }) {
     const [difficulty, setDifficulty] = useState('medium');
     const [selectedLangs, setSelectedLangs] = useState([]);
     const [customLang, setCustomLang] = useState('');
+    // Global mode: which sections are included, and which language each one gets.
+    const [includedSections, setIncludedSections] = useState({});
+    const [sectionLangs, setSectionLangs] = useState({});
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [result, setResult] = useState(null);
@@ -76,6 +80,14 @@ function TestEventApp({ isSuper, sections }) {
         setCustomLang('');
     }
 
+    function toggleSection(id) {
+        setIncludedSections(prev => ({ ...prev, [id]: !prev[id] }));
+    }
+
+    function setSectionLang(id, lang) {
+        setSectionLangs(prev => ({ ...prev, [id]: lang }));
+    }
+
     function applyEndPreset(hoursFromStart) {
         if (!startDate || !startClock) return;
         const start = new Date(`${startDate}T${startClock}`);
@@ -87,9 +99,7 @@ function TestEventApp({ isSuper, sections }) {
     async function submit() {
         setError('');
         if (!title.trim()) { setError('Please enter a title.'); return; }
-        if (selectedLangs.length === 0) { setError('Select at least one language.'); return; }
         if (!startDate || !startClock || !endDate || !endClock) { setError('Please set a start and end time.'); return; }
-        if (isSuper && !sectionId) { setError('Please choose a section.'); return; }
 
         const startTime = `${startDate}T${startClock}`;
         const endTime = `${endDate}T${endClock}`;
@@ -98,6 +108,48 @@ function TestEventApp({ isSuper, sections }) {
             setError('End time must be after the start time.');
             return;
         }
+
+        if (scope === 'global') {
+            const chosenSectionIds = sections.map(s => s.id).filter(id => includedSections[id]);
+            if (chosenSectionIds.length === 0) { setError('Select at least one section.'); return; }
+            const missingLang = chosenSectionIds.find(id => !(sectionLangs[id] || '').trim());
+            if (missingLang) { setError('Choose a language for every selected section.'); return; }
+
+            setSubmitting(true);
+            try {
+                const res = await fetch('/Admin/TestEvents/CreateGlobalAndPost', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getToken()
+                    },
+                    body: JSON.stringify({
+                        title,
+                        startTime,
+                        endTime,
+                        durationMinutes: parseInt(duration),
+                        questionCount: parseInt(count),
+                        difficulty,
+                        sectionLanguages: chosenSectionIds.map(id => ({
+                            sectionId: parseInt(id),
+                            language: sectionLangs[id].trim()
+                        }))
+                    })
+                });
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { setError(data.error || 'Failed to create test event.'); return; }
+                setResult({ ...data, isGlobal: true });
+            } catch (e) {
+                setError('Something went wrong. Please try again.');
+            } finally {
+                setSubmitting(false);
+            }
+            return;
+        }
+
+        if (selectedLangs.length === 0) { setError('Select at least one language.'); return; }
+        if (isSuper && !sectionId) { setError('Please choose a section.'); return; }
 
         setSubmitting(true);
         try {
@@ -143,7 +195,9 @@ function TestEventApp({ isSuper, sections }) {
                     {result.failedLanguages.length > 0 && (
                         <p className="text-danger">Could not generate: {result.failedLanguages.join(', ')}</p>
                     )}
-                    <p>{result.studentsAssigned} student(s) assigned.</p>
+                    {result.isGlobal
+                        ? <p>{result.sectionsAssigned} section(s), {result.studentsAssigned} student(s) assigned.</p>
+                        : <p>{result.studentsAssigned} student(s) assigned.</p>}
                     <a href={`/Admin/TestEvents/Results/${result.eventId}`} className="btn btn-primary">
                         View Results Dashboard
                     </a>
@@ -153,15 +207,28 @@ function TestEventApp({ isSuper, sections }) {
     }
 
     return (
-        <div className="card" style={{maxWidth: '720px'}}>
+        <div className="card" style={{maxWidth: '760px'}}>
             <div className="card-body">
+                {isSuper && (
+                    <div className="mb-3 btn-group" role="group">
+                        <button type="button" className={`btn btn-sm ${scope === 'single' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            onClick={() => setScope('single')}>
+                            <i className="ti ti-building-community me-1"></i>Single Section
+                        </button>
+                        <button type="button" className={`btn btn-sm ${scope === 'global' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            onClick={() => setScope('global')}>
+                            <i className="ti ti-world me-1"></i>All Sections (Global)
+                        </button>
+                    </div>
+                )}
+
                 <div className="mb-3">
                     <label className="form-label fw-semibold">Title</label>
                     <input className="form-control" placeholder="e.g. Mid-Term Coding Assessment"
                         value={title} onChange={e => setTitle(e.target.value)} />
                 </div>
 
-                {isSuper && (
+                {isSuper && scope === 'single' && (
                     <div className="mb-3">
                         <label className="form-label fw-semibold">Section</label>
                         <select className="form-select" value={sectionId} onChange={e => setSectionId(e.target.value)}>
@@ -220,40 +287,89 @@ function TestEventApp({ isSuper, sections }) {
                     </div>
                 </div>
 
-                <div className="mb-3">
-                    <label className="form-label fw-semibold">Languages</label>
-                    <div className="d-flex flex-wrap gap-2 mb-2">
-                        {COMMON_LANGUAGES.map(lang => (
-                            <button type="button" key={lang}
-                                className={`btn btn-sm ${selectedLangs.includes(lang) ? 'btn-primary' : 'btn-outline-primary'}`}
-                                onClick={() => toggleLang(lang)}>
-                                {lang}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="input-group input-group-sm" style={{maxWidth: '320px'}}>
-                        <input className="form-control" placeholder="Add another language..."
-                            value={customLang} onChange={e => setCustomLang(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && addCustomLang()} />
-                        <button className="btn btn-outline-secondary" type="button" onClick={addCustomLang}>Add</button>
-                    </div>
-                    {selectedLangs.length > 0 && (
-                        <div className="mt-2 d-flex flex-wrap gap-2">
-                            {selectedLangs.map(lang => (
-                                <span key={lang} className="badge bg-secondary d-flex align-items-center gap-1" style={{fontSize: '0.85rem'}}>
+                {scope === 'single' && (
+                    <div className="mb-3">
+                        <label className="form-label fw-semibold">Languages</label>
+                        <div className="d-flex flex-wrap gap-2 mb-2">
+                            {COMMON_LANGUAGES.map(lang => (
+                                <button type="button" key={lang}
+                                    className={`btn btn-sm ${selectedLangs.includes(lang) ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={() => toggleLang(lang)}>
                                     {lang}
-                                    <i className="ti ti-x" style={{cursor: 'pointer'}} onClick={() => toggleLang(lang)}></i>
-                                </span>
+                                </button>
                             ))}
                         </div>
-                    )}
-                </div>
+                        <div className="input-group input-group-sm" style={{maxWidth: '320px'}}>
+                            <input className="form-control" placeholder="Add another language..."
+                                value={customLang} onChange={e => setCustomLang(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && addCustomLang()} />
+                            <button className="btn btn-outline-secondary" type="button" onClick={addCustomLang}>Add</button>
+                        </div>
+                        {selectedLangs.length > 0 && (
+                            <div className="mt-2 d-flex flex-wrap gap-2">
+                                {selectedLangs.map(lang => (
+                                    <span key={lang} className="badge bg-secondary d-flex align-items-center gap-1" style={{fontSize: '0.85rem'}}>
+                                        {lang}
+                                        <i className="ti ti-x" style={{cursor: 'pointer'}} onClick={() => toggleLang(lang)}></i>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                        <small className="text-muted d-block mt-2">
+                            Every student in the section will be randomly assigned one of these languages.
+                        </small>
+                    </div>
+                )}
+
+                {scope === 'global' && (
+                    <div className="mb-3">
+                        <label className="form-label fw-semibold">Sections &amp; Languages</label>
+                        <small className="text-muted d-block mb-2">
+                            Pick which sections take this test, and which single language each one gets.
+                            Every student in a checked section writes that section's language.
+                        </small>
+                        <div className="table-responsive">
+                            <table className="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style={{width: '40px'}}></th>
+                                        <th>Section</th>
+                                        <th>Language</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sections.map(s => (
+                                        <tr key={s.id}>
+                                            <td>
+                                                <input type="checkbox" className="form-check-input"
+                                                    checked={!!includedSections[s.id]}
+                                                    onChange={() => toggleSection(s.id)} />
+                                            </td>
+                                            <td>{s.name}</td>
+                                            <td>
+                                                <select className="form-select form-select-sm" style={{maxWidth: '220px'}}
+                                                    disabled={!includedSections[s.id]}
+                                                    value={sectionLangs[s.id] || ''}
+                                                    onChange={e => setSectionLang(s.id, e.target.value)}>
+                                                    <option value="">Choose language...</option>
+                                                    {COMMON_LANGUAGES.map(lang => (
+                                                        <option key={lang} value={lang}>{lang}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
 
                 {error && <div className="alert alert-danger">{error}</div>}
 
                 <button className="btn btn-primary w-100" onClick={submit} disabled={submitting}>
                     {submitting
-                        ? <><span className="spinner-border spinner-border-sm me-2"></span>Generating {selectedLangs.length || ''} language quiz(zes)...</>
+                        ? <><span className="spinner-border spinner-border-sm me-2"></span>Generating quiz(zes)...</>
                         : <><i className="ti ti-sparkles me-2"></i>Generate &amp; Post Test</>}
                 </button>
             </div>

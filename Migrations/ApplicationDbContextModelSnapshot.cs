@@ -503,7 +503,7 @@ namespace OnlineQuizApp.Migrations
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("SectionId")
+                    b.Property<int?>("SectionId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("StartTime")
@@ -521,6 +521,40 @@ namespace OnlineQuizApp.Migrations
                     b.HasIndex("SectionId");
 
                     b.ToTable("TestEvents");
+                });
+
+            modelBuilder.Entity("OnlineQuizApp.Models.TestEventSectionLanguage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("QuizId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SectionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TestEventId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuizId");
+
+                    b.HasIndex("SectionId");
+
+                    b.HasIndex("TestEventId", "SectionId")
+                        .IsUnique();
+
+                    b.ToTable("TestEventSectionLanguages");
                 });
 
             modelBuilder.Entity("OnlineQuizApp.Models.TestEventAssignment", b =>
@@ -766,12 +800,38 @@ namespace OnlineQuizApp.Migrations
                     b.HasOne("OnlineQuizApp.Models.Section", "Section")
                         .WithMany()
                         .HasForeignKey("SectionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CreatedByUser");
 
                     b.Navigation("Section");
+                });
+
+            modelBuilder.Entity("OnlineQuizApp.Models.TestEventSectionLanguage", b =>
+                {
+                    b.HasOne("OnlineQuizApp.Models.Quiz", "Quiz")
+                        .WithMany()
+                        .HasForeignKey("QuizId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OnlineQuizApp.Models.Section", "Section")
+                        .WithMany()
+                        .HasForeignKey("SectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OnlineQuizApp.Models.TestEvent", "TestEvent")
+                        .WithMany("SectionLanguages")
+                        .HasForeignKey("TestEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Quiz");
+
+                    b.Navigation("Section");
+
+                    b.Navigation("TestEvent");
                 });
 
             modelBuilder.Entity("OnlineQuizApp.Models.TestEventAssignment", b =>
@@ -871,6 +931,8 @@ namespace OnlineQuizApp.Migrations
                     b.Navigation("Assignments");
 
                     b.Navigation("Quizzes");
+
+                    b.Navigation("SectionLanguages");
                 });
 #pragma warning restore 612, 618
         }

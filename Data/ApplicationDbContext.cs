@@ -22,6 +22,7 @@ namespace OnlineQuizApp.Data
         public DbSet<TestEvent> TestEvents { get; set; } = default!;
         public DbSet<TestEventAssignment> TestEventAssignments { get; set; } = default!;
         public DbSet<ExamSnapshot> ExamSnapshots { get; set; } = default!;
+        public DbSet<TestEventSectionLanguage> TestEventSectionLanguages { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -137,7 +138,7 @@ namespace OnlineQuizApp.Data
                 .WithMany()
                 .HasForeignKey(te => te.SectionId)
                 .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired();
+                .IsRequired(false);
 
             builder.Entity<TestEvent>()
                 .HasOne(te => te.CreatedByUser)
@@ -179,6 +180,33 @@ namespace OnlineQuizApp.Data
 
             builder.Entity<TestEventAssignment>()
                 .HasIndex(a => new { a.TestEventId, a.UserId })
+                .IsUnique();
+
+            // TestEventSectionLanguage relationships - cascade only from TestEvent (single
+            // cascade path), Restrict on Section/Quiz to avoid multiple-cascade-path errors.
+            builder.Entity<TestEventSectionLanguage>()
+                .HasOne(sl => sl.TestEvent)
+                .WithMany(te => te.SectionLanguages)
+                .HasForeignKey(sl => sl.TestEventId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            builder.Entity<TestEventSectionLanguage>()
+                .HasOne(sl => sl.Section)
+                .WithMany()
+                .HasForeignKey(sl => sl.SectionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            builder.Entity<TestEventSectionLanguage>()
+                .HasOne(sl => sl.Quiz)
+                .WithMany()
+                .HasForeignKey(sl => sl.QuizId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            builder.Entity<TestEventSectionLanguage>()
+                .HasIndex(sl => new { sl.TestEventId, sl.SectionId })
                 .IsUnique();
         }
     }

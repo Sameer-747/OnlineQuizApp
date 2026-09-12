@@ -12,10 +12,21 @@ namespace OnlineQuizApp.Models
         [Required, StringLength(200)]
         public string Title { get; set; } = string.Empty;
 
-        public int SectionId { get; set; }
+        // Null = a super-admin-created "global" event spanning multiple sections (see
+        // SectionLanguages below for the per-section language mapping). Set = a regular,
+        // single-section event created by that section's admin (or by the super admin for
+        // just that one section).
+        public int? SectionId { get; set; }
 
         [ForeignKey(nameof(SectionId))]
         public Section? Section { get; set; }
+
+        [NotMapped]
+        public bool IsGlobal => SectionId == null;
+
+        // Only populated for global events: which section must attempt which language (and
+        // therefore which generated quiz). Empty for regular single-section events.
+        public ICollection<TestEventSectionLanguage> SectionLanguages { get; set; } = new List<TestEventSectionLanguage>();
 
         // Window during which assigned students may start their quiz. Stored in UTC.
         public DateTime StartTime { get; set; }

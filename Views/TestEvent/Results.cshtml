@@ -25,6 +25,10 @@
     <p class="text-muted">
         @startIst.ToString("dd MMM yyyy, hh:mm tt") &rarr; @endIst.ToString("dd MMM yyyy, hh:mm tt") IST
         &nbsp;<span class="badge @badgeClass">@testEvent.Status</span>
+        @if (testEvent.SectionId == null)
+        {
+            <span class="badge bg-info text-dark"><i class="ti ti-world"></i> All Sections</span>
+        }
     </p>
 }
 
@@ -45,6 +49,10 @@ else
                     <th>Rank</th>
                     <th>Student</th>
                     <th>Roll No</th>
+                    @if (testEvent != null && testEvent.SectionId == null)
+                    {
+                        <th>Section</th>
+                    }
                     <th>Score</th>
                     <th>Percentage</th>
                     <th>Status</th>
@@ -72,6 +80,10 @@ else
                         <td class="fw-bold" style="font-size:1.1rem;">@rankBadge</td>
                         <td>@row.StudentName</td>
                         <td>@(row.RollNumber ?? "—")</td>
+                        @if (testEvent != null && testEvent.SectionId == null)
+                        {
+                            <td>@(row.SectionName ?? "—")</td>
+                        }
                         <td>
                             @if (row.Attempted)
                             {
