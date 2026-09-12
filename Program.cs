@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OnlineQuizApp.Data;
@@ -39,6 +40,21 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
+
+// Render (and most reverse-proxy hosts) terminate HTTPS at their edge and forward requests to
+// this app over plain HTTP internally. Without this, the app thinks every request is HTTP,
+// which breaks anything that builds an absolute URL from the request scheme (e.g. the login
+// redirect on a failed auth challenge gets stamped "http://" and the browser blocks it as mixed
+// content on an https page). Render's proxy IP isn't fixed, so clear the known-networks/proxies
+// restriction to trust the forwarded headers unconditionally.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
