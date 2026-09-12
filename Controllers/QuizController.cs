@@ -195,22 +195,30 @@ namespace OnlineQuizApp.Controllers
 
             if (quiz == null) return NotFound();
 
+            // Shuffle both question order and option order per student so no two students see
+            // the same layout. Grading in Submit() matches by QuestionId/OptionId, never by
+            // position, so this has no effect on correctness.
+            var rng = Random.Shared;
             var viewModel = new QuizPlayViewModel
             {
                 QuizId = quiz.Id,
                 Title = quiz.Title,
                 DurationMinutes = quiz.DurationMinutes,
                 IsTestEvent = quiz.TestEventId != null,
-                Questions = quiz.Questions.Select(q => new QuestionPlayViewModel
-                {
-                    QuestionId = q.Id,
-                    Text = q.Text,
-                    Options = q.Options.Select(o => new OptionPlayViewModel
+                Questions = quiz.Questions
+                    .OrderBy(q => rng.Next())
+                    .Select(q => new QuestionPlayViewModel
                     {
-                        OptionId = o.Id,
-                        Text = o.Text
+                        QuestionId = q.Id,
+                        Text = q.Text,
+                        Options = q.Options
+                            .OrderBy(o => rng.Next())
+                            .Select(o => new OptionPlayViewModel
+                            {
+                                OptionId = o.Id,
+                                Text = o.Text
+                            }).ToList()
                     }).ToList()
-                }).ToList()
             };
 
             return View(viewModel);
