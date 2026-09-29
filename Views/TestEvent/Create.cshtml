@@ -60,6 +60,8 @@ function TestEventApp({ isSuper, sections }) {
     // Global mode: which sections are included, and which language each one gets.
     const [includedSections, setIncludedSections] = useState({});
     const [sectionLangs, setSectionLangs] = useState({});
+    // Which sections are currently typing a custom subject/language instead of picking from the list.
+    const [customSectionMode, setCustomSectionMode] = useState({});
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [result, setResult] = useState(null);
@@ -86,6 +88,20 @@ function TestEventApp({ isSuper, sections }) {
 
     function setSectionLang(id, lang) {
         setSectionLangs(prev => ({ ...prev, [id]: lang }));
+    }
+
+    function handleSectionLangSelect(id, value) {
+        if (value === '__custom__') {
+            setCustomSectionMode(prev => ({ ...prev, [id]: true }));
+            setSectionLang(id, '');
+        } else {
+            setSectionLang(id, value);
+        }
+    }
+
+    function backToSectionLangList(id) {
+        setCustomSectionMode(prev => ({ ...prev, [id]: false }));
+        setSectionLang(id, '');
     }
 
     function applyEndPreset(hoursFromStart) {
@@ -347,15 +363,31 @@ function TestEventApp({ isSuper, sections }) {
                                             </td>
                                             <td>{s.name}</td>
                                             <td>
-                                                <select className="form-select form-select-sm" style={{maxWidth: '220px'}}
-                                                    disabled={!includedSections[s.id]}
-                                                    value={sectionLangs[s.id] || ''}
-                                                    onChange={e => setSectionLang(s.id, e.target.value)}>
-                                                    <option value="">Choose language...</option>
-                                                    {COMMON_LANGUAGES.map(lang => (
-                                                        <option key={lang} value={lang}>{lang}</option>
-                                                    ))}
-                                                </select>
+                                                {customSectionMode[s.id] ? (
+                                                    <div className="input-group input-group-sm" style={{maxWidth: '260px'}}>
+                                                        <input className="form-control" placeholder="Type subject/language..."
+                                                            disabled={!includedSections[s.id]}
+                                                            value={sectionLangs[s.id] || ''}
+                                                            onChange={e => setSectionLang(s.id, e.target.value)}
+                                                            autoFocus />
+                                                        <button className="btn btn-outline-secondary" type="button"
+                                                            title="Back to list"
+                                                            onClick={() => backToSectionLangList(s.id)}>
+                                                            <i className="ti ti-list"></i>
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <select className="form-select form-select-sm" style={{maxWidth: '220px'}}
+                                                        disabled={!includedSections[s.id]}
+                                                        value={sectionLangs[s.id] || ''}
+                                                        onChange={e => handleSectionLangSelect(s.id, e.target.value)}>
+                                                        <option value="">Choose language...</option>
+                                                        {COMMON_LANGUAGES.map(lang => (
+                                                            <option key={lang} value={lang}>{lang}</option>
+                                                        ))}
+                                                        <option value="__custom__">+ Add custom subject...</option>
+                                                    </select>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
