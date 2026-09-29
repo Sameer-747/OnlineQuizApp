@@ -13,9 +13,43 @@
     <h2 class="mb-0"><i class="ti ti-chart-bar me-2"></i>@testEvent?.Title</h2>
     @if (isSuper && testEvent != null)
     {
-        <a asp-action="ExportExcel" asp-route-id="@testEvent.Id" class="btn btn-success btn-sm ms-auto">
-            <i class="ti ti-file-spreadsheet me-1"></i>Download Excel
-        </a>
+        var sectionOptions = testEvent.SectionLanguages
+            .Where(sl => sl.Section != null)
+            .Select(sl => sl.Section!)
+            .DistinctBy(s => s.Id)
+            .OrderBy(s => s.Name)
+            .ToList();
+
+        if (sectionOptions.Count > 1)
+        {
+            <div class="dropdown ms-auto">
+                <button class="btn btn-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="ti ti-file-spreadsheet me-1"></i>Download Excel
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" asp-action="ExportExcel" asp-route-id="@testEvent.Id">
+                            <i class="ti ti-world me-1"></i>All Sections
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                    @foreach (var section in sectionOptions)
+                    {
+                        <li>
+                            <a class="dropdown-item" asp-action="ExportExcel" asp-route-id="@testEvent.Id" asp-route-sectionId="@section.Id">
+                                @section.Name
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+        else
+        {
+            <a asp-action="ExportExcel" asp-route-id="@testEvent.Id" class="btn btn-success btn-sm ms-auto">
+                <i class="ti ti-file-spreadsheet me-1"></i>Download Excel
+            </a>
+        }
     }
 </div>
 

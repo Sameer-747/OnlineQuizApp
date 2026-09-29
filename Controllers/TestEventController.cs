@@ -472,7 +472,7 @@ namespace OnlineQuizApp.Controllers
             var testEvent = await _context.TestEvents
                 .Include(te => te.Section)
                 .Include(te => te.Quizzes)
-                .Include(te => te.SectionLanguages)
+                .Include(te => te.SectionLanguages).ThenInclude(sl => sl.Section)
                 .FirstOrDefaultAsync(te => te.Id == id);
 
             if (testEvent == null) return NotFound();
@@ -497,26 +497,41 @@ namespace OnlineQuizApp.Controllers
             return View(rows);
         }
 
-        // GET: /Admin/TestEvents/Results/5/ExportExcel - super-admin-only export of this test
-        // event's results as a real .xlsx workbook (S.No, Roll Number, Section, Test Name, Marks).
+        // GET: /Admin/TestEvents/Results/5/ExportExcel?sectionId=3 - super-admin-only export of
+        // this test event's results as a real .xlsx workbook (S.No, Roll Number, Section, Test
+        // Name, Marks). Omit sectionId for every section; pass it to export just that one section
+        // (only meaningful for global, multi-section events).
         [HttpGet("Results/{id:int}/ExportExcel")]
-        public async Task<IActionResult> ExportExcel(int id)
+        public async Task<IActionResult> ExportExcel(int id, int? sectionId = null)
         {
             if (!IsSuperAdmin()) return Forbid();
 
             var testEvent = await _context.TestEvents
                 .Include(te => te.Section)
                 .Include(te => te.Quizzes)
-                .Include(te => te.SectionLanguages)
+                .Include(te => te.SectionLanguages).ThenInclude(sl => sl.Section)
                 .FirstOrDefaultAsync(te => te.Id == id);
 
             if (testEvent == null) return NotFound();
 
-            var rows = await BuildResultRowsAsync(testEvent, isSuper: true, sectionId: null);
+            var rows = await BuildResultRowsAsync(testEvent, isSuper: true, sectionId: null, onlySectionId: sectionId);
 
             var bytes = SimpleXlsxWriter.BuildResultsWorkbook(rows);
             var safeTitle = string.Concat(testEvent.Title.Select(c => char.IsLetterOrDigit(c) ? c : '_'));
-            var fileName = $"{safeTitle}_Results.xlsx";
+
+            string fileName;
+            if (sectionId.HasValue)
+            {
+                var sectionName = testEvent.SectionLanguages.FirstOrDefault(sl => sl.SectionId == sectionId.Value)?.Section?.Name
+                    ?? testEvent.Section?.Name
+                    ?? "Section";
+                var safeSection = string.Concat(sectionName.Select(c => char.IsLetterOrDigit(c) ? c : '_'));
+                fileName = $"{safeTitle}_{safeSection}_Results.xlsx";
+            }
+            else
+            {
+                fileName = $"{safeTitle}_Results.xlsx";
+            }
 
             return File(bytes,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -525,7 +540,10 @@ namespace OnlineQuizApp.Controllers
 
         // Builds the results grid rows for a test event, shared by the Results view and the
         // Excel export. sectionId/isSuper control section-scoping exactly like the Results action.
-        private async Task<List<TestEventResultRow>> BuildResultRowsAsync(TestEvent testEvent, bool isSuper, int? sectionId)
+        // onlySectionId, when set, further restricts the rows to just that one section (used by
+        // the per-section Excel export).
+        private async Task<List<TestEventResultRow>> BuildResultRowsAsync(
+            TestEvent testEvent, bool isSuper, int? sectionId, int? onlySectionId = null)
         {
             var assignments = await _context.TestEventAssignments
                 .Include(a => a.User).ThenInclude(u => u!.Section)
@@ -537,6 +555,12 @@ namespace OnlineQuizApp.Controllers
             if (!isSuper && testEvent.SectionId == null)
             {
                 assignments = assignments.Where(a => a.User?.SectionId == sectionId).ToList();
+            }
+
+            // Explicit single-section filter, e.g. for the per-section Excel export.
+            if (onlySectionId.HasValue)
+            {
+                assignments = assignments.Where(a => a.User?.SectionId == onlySectionId.Value).ToList();
             }
 
             var quizIds = testEvent.Quizzes.Select(q => q.Id).ToList();
