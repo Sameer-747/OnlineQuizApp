@@ -33,11 +33,11 @@
                         </a>
                     </li>
                     <li><hr class="dropdown-divider" /></li>
-                    @foreach (var section in sectionOptions)
+                    @foreach (var sec in sectionOptions)
                     {
                         <li>
-                            <a class="dropdown-item" asp-action="ExportExcel" asp-route-id="@testEvent.Id" asp-route-sectionId="@section.Id">
-                                @section.Name
+                            <a class="dropdown-item" asp-action="ExportExcel" asp-route-id="@testEvent.Id" asp-route-sectionId="@sec.Id">
+                                @sec.Name
                             </a>
                         </li>
                     }
