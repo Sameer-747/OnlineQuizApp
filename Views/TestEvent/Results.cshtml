@@ -3,13 +3,20 @@
     var testEvent = ViewBag.TestEvent as TestEvent;
     ViewData["Title"] = testEvent?.Title ?? "Test Event Results";
     var ist = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+    bool isSuper = ViewBag.IsSuper ?? false;
 }
 
-<div class="d-flex align-items-center gap-3 mb-3">
+<div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
     <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
         <i class="ti ti-arrow-left me-1"></i>Back
     </a>
     <h2 class="mb-0"><i class="ti ti-chart-bar me-2"></i>@testEvent?.Title</h2>
+    @if (isSuper && testEvent != null)
+    {
+        <a asp-action="ExportExcel" asp-route-id="@testEvent.Id" class="btn btn-success btn-sm ms-auto">
+            <i class="ti ti-file-spreadsheet me-1"></i>Download Excel
+        </a>
+    }
 </div>
 
 @if (testEvent != null)

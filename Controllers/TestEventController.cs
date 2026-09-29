@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OnlineQuizApp.Data;
 using OnlineQuizApp.Models;
+using OnlineQuizApp.Services;
 using OnlineQuizApp.ViewModels;
 using System.Net.Http.Headers;
 using System.Text;
@@ -489,10 +490,47 @@ namespace OnlineQuizApp.Controllers
                 }
             }
 
+            var rows = await BuildResultRowsAsync(testEvent, isSuper, sectionId);
+
+            ViewBag.TestEvent = testEvent;
+            ViewBag.IsSuper = isSuper;
+            return View(rows);
+        }
+
+        // GET: /Admin/TestEvents/Results/5/ExportExcel - super-admin-only export of this test
+        // event's results as a real .xlsx workbook (S.No, Roll Number, Section, Test Name, Marks).
+        [HttpGet("Results/{id:int}/ExportExcel")]
+        public async Task<IActionResult> ExportExcel(int id)
+        {
+            if (!IsSuperAdmin()) return Forbid();
+
+            var testEvent = await _context.TestEvents
+                .Include(te => te.Section)
+                .Include(te => te.Quizzes)
+                .Include(te => te.SectionLanguages)
+                .FirstOrDefaultAsync(te => te.Id == id);
+
+            if (testEvent == null) return NotFound();
+
+            var rows = await BuildResultRowsAsync(testEvent, isSuper: true, sectionId: null);
+
+            var bytes = SimpleXlsxWriter.BuildResultsWorkbook(rows);
+            var safeTitle = string.Concat(testEvent.Title.Select(c => char.IsLetterOrDigit(c) ? c : '_'));
+            var fileName = $"{safeTitle}_Results.xlsx";
+
+            return File(bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+
+        // Builds the results grid rows for a test event, shared by the Results view and the
+        // Excel export. sectionId/isSuper control section-scoping exactly like the Results action.
+        private async Task<List<TestEventResultRow>> BuildResultRowsAsync(TestEvent testEvent, bool isSuper, int? sectionId)
+        {
             var assignments = await _context.TestEventAssignments
                 .Include(a => a.User).ThenInclude(u => u!.Section)
                 .Include(a => a.Quiz)
-                .Where(a => a.TestEventId == id)
+                .Where(a => a.TestEventId == testEvent.Id)
                 .ToListAsync();
 
             // A section admin viewing a global event only sees their own section's students.
@@ -530,7 +568,10 @@ namespace OnlineQuizApp.Controllers
                 {
                     Language = assignment.Quiz?.Title ?? "—",
                     QuizId = assignment.QuizId,
-                    SectionName = testEvent.SectionId == null ? (assignment.User?.Section?.Name ?? "—") : null,
+                    // Populated for every row (not just global events) so the Excel export always
+                    // has a section value; the Results view only displays this column when the
+                    // event itself is global, so on-screen behavior is unchanged.
+                    SectionName = assignment.User?.Section?.Name ?? testEvent.Section?.Name ?? "—",
                     StudentName = assignment.User?.FullName ?? assignment.User?.Email ?? "—",
                     RollNumber = assignment.User?.RollNumber,
                     Attempted = attempt != null,
@@ -560,8 +601,7 @@ namespace OnlineQuizApp.Controllers
                 }
             }
 
-            ViewBag.TestEvent = testEvent;
-            return View(rows.OrderBy(r => r.Language).ThenBy(r => r.Rank ?? int.MaxValue).ToList());
+            return rows.OrderBy(r => r.Language).ThenBy(r => r.Rank ?? int.MaxValue).ToList();
         }
 
         // GET: /Admin/TestEvents/Snapshot/5 - serves a camera-violation evidence image.
