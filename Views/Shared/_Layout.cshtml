@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Online Quiz App</title>
+    <title>@ViewData["Title"] - QuizFortress</title>
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="~/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png" />
@@ -34,7 +34,7 @@
         <aside class="admin-sidebar">
             <a class="sidebar-brand" asp-controller="Home" asp-action="Index">
                 <i class="ti ti-sparkles"></i>
-                <span>Online Quiz App</span>
+                <span>QuizFortress</span>
             </a>
 
             <div class="sidebar-badge">
@@ -68,7 +68,7 @@
                 @RenderBody()
             </main>
             <footer class="text-center py-3 text-muted small">
-                &copy; @DateTime.Now.Year - Online Quiz App
+                &copy; @DateTime.Now.Year - QuizFortress
             </footer>
         </div>
     </div>
@@ -80,7 +80,7 @@ else
             <div class="container-fluid px-3 px-lg-4">
                 <a class="navbar-brand fw-bold d-flex align-items-center gap-2" asp-controller="Home" asp-action="Index">
                     <i class="ti ti-sparkles" style="font-size:22px"></i>
-                    Online Quiz App
+                    QuizFortress
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
                     <span class="navbar-toggler-icon"></span>
@@ -138,7 +138,7 @@ else
 
     <footer class="glass-footer text-center py-3 mt-5">
         <div class="container">
-            &copy; @DateTime.Now.Year - Online Quiz App
+            &copy; @DateTime.Now.Year - QuizFortress
         </div>
     </footer>
 }

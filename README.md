@@ -1,4 +1,4 @@
-# Online Quiz Application (ASP.NET Core MVC + PostgreSQL)
+# QuizFortress — Online Quiz Application (ASP.NET Core MVC + PostgreSQL)
 
 This version is configured for **PostgreSQL** (switched from SQL Server) so it can be deployed for free on **Render.com**.
 
